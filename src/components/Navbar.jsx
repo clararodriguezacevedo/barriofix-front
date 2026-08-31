@@ -8,6 +8,7 @@ const links = [
   { to: '/trabajos', label: 'Trabajos' },
   { to: '/seguimiento', label: 'Seguimiento' },
   { to: '/historial', label: 'Historial' },
+  { to: '/fotos', label: 'Fotos' },
 ]
 
 export default function Navbar() {

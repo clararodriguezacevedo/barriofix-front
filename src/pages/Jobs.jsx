@@ -3,9 +3,10 @@ import { useRequests } from '../context/RequestsContext'
 import { useUser } from '../context/UserContext'
 import { CATEGORIES, STATUS } from '../data/mockData'
 import RequestTicket from '../components/RequestTicket'
+import ApiState from '../components/ApiState'
 
 export default function Jobs() {
-  const { requests, takeJob } = useRequests()
+  const { requests, takeJob, loading, error } = useRequests()
   const { user } = useUser()
   const [filtro, setFiltro] = useState('Todas')
 
@@ -46,9 +47,13 @@ export default function Jobs() {
         ))}
       </div>
 
-      {disponibles.length === 0 ? (
+      <ApiState loading={loading} error={error} loadingText="Cargando trabajos…" />
+
+      {!loading && !error && disponibles.length === 0 && (
         <p className="empty-state">No hay trabajos disponibles en esta categoría por ahora.</p>
-      ) : (
+      )}
+
+      {!loading && !error && disponibles.length > 0 && (
         <div className="ticket-grid">
           {disponibles.map((r) => (
             <RequestTicket

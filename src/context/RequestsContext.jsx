@@ -1,70 +1,82 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { SEED_REQUESTS, STATUS } from '../data/mockData'
+import {
+  fetchRequests,
+  createRequest,
+  acceptRequest,
+  updateRequestStatus,
+  rateRequestApi,
+} from '../api/client'
+import { STATUS } from '../data/mockData'
 
-const STORAGE_KEY = 'barriofix_requests'
 const RequestsContext = createContext(null)
 
-function loadInitial() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {
-    // ignore corrupted storage and fall back to seed data
-  }
-  return SEED_REQUESTS
-}
-
-function nextId(requests) {
-  const max = requests.reduce((acc, r) => {
-    const n = Number(r.id.replace('BF-', ''))
-    return Number.isFinite(n) && n > acc ? n : acc
-  }, 1000)
-  return `BF-${max + 1}`
-}
-
 export function RequestsProvider({ children }) {
-  const [requests, setRequests] = useState(loadInitial)
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  async function reload() {
+    setLoading(true)
+    setError(null)
+    try {
+      setRequests(await fetchRequests())
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(requests))
-  }, [requests])
+    reload()
+  }, [])
+
+  function upsert(updated) {
+    setRequests((prev) => {
+      const exists = prev.some((r) => r.id === updated.id)
+      return exists ? prev.map((r) => (r.id === updated.id ? updated : r)) : [updated, ...prev]
+    })
+  }
 
   const api = useMemo(
     () => ({
       requests,
-      addRequest(data) {
-        const id = nextId(requests)
-        const nueva = {
-          id,
-          estado: STATUS.PENDIENTE,
-          profesional: null,
-          rating: null,
-          comentario: '',
-          creado: new Date().toISOString().slice(0, 10),
-          ...data,
+      loading,
+      error,
+      reload,
+      async addRequest(data) {
+        try {
+          const nueva = await createRequest(data)
+          upsert(nueva)
+          return nueva.id
+        } catch (e) {
+          setError(e.message)
+          throw e
         }
-        setRequests((prev) => [nueva, ...prev])
-        return id
       },
-      takeJob(id, profesional) {
-        setRequests((prev) =>
-          prev.map((r) =>
-            r.id === id ? { ...r, estado: STATUS.EN_PROGRESO, profesional } : r,
-          ),
-        )
+      async takeJob(id, profesional) {
+        try {
+          upsert(await acceptRequest(id, profesional))
+        } catch (e) {
+          setError(e.message)
+        }
       },
-      completeJob(id) {
-        setRequests((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, estado: STATUS.COMPLETADO } : r)),
-        )
+      async completeJob(id) {
+        try {
+          upsert(await updateRequestStatus(id, STATUS.COMPLETADO))
+        } catch (e) {
+          setError(e.message)
+        }
       },
-      rateRequest(id, rating, comentario) {
-        setRequests((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, rating, comentario } : r)),
-        )
+      async rateRequest(id, rating, comentario) {
+        try {
+          upsert(await rateRequestApi(id, rating, comentario))
+        } catch (e) {
+          setError(e.message)
+        }
       },
     }),
-    [requests],
+    [requests, loading, error],
   )
 
   return <RequestsContext.Provider value={api}>{children}</RequestsContext.Provider>

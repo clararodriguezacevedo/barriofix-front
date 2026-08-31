@@ -6,6 +6,7 @@ import NewRequest from './pages/NewRequest'
 import Jobs from './pages/Jobs'
 import Tracking from './pages/Tracking'
 import History from './pages/History'
+import Media from './pages/Media'
 import './App.css'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/trabajos" element={<Jobs />} />
           <Route path="/seguimiento" element={<Tracking />} />
           <Route path="/historial" element={<History />} />
+          <Route path="/fotos" element={<Media />} />
         </Routes>
       </main>
       <footer className="app-footer">

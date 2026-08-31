@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useRequests } from '../context/RequestsContext'
 import { STATUS } from '../data/mockData'
 import StatusBadge from '../components/StatusBadge'
+import ApiState from '../components/ApiState'
 import { IconStar, IconMapPin, IconUser } from '../components/Icons'
 
 function RatingStars({ value, onChange }) {
@@ -74,7 +75,7 @@ function HistoryTicket({ request, onRate }) {
 }
 
 export default function History() {
-  const { requests, rateRequest } = useRequests()
+  const { requests, rateRequest, loading, error } = useRequests()
 
   const completados = useMemo(
     () => requests.filter((r) => r.estado === STATUS.COMPLETADO),
@@ -103,9 +104,13 @@ export default function History() {
         )}
       </div>
 
-      {completados.length === 0 ? (
+      <ApiState loading={loading} error={error} loadingText="Cargando historial…" />
+
+      {!loading && !error && completados.length === 0 && (
         <p className="empty-state">Todavía no hay trabajos completados.</p>
-      ) : (
+      )}
+
+      {!loading && !error && completados.length > 0 && (
         <div className="ticket-grid">
           {completados.map((r) => (
             <HistoryTicket key={r.id} request={r} onRate={rateRequest} />

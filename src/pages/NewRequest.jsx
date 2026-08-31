@@ -19,17 +19,27 @@ export default function NewRequest() {
   const navigate = useNavigate()
   const [form, setForm] = useState(initialForm)
   const [ticketId, setTicketId] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState(null)
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!form.titulo || !form.direccion || !form.descripcion) return
-    const id = addRequest({ ...form, cliente: user?.name ?? 'Vecino/a sin identificar' })
-    setTicketId(id)
-    setForm(initialForm)
+    setSending(true)
+    setError(null)
+    try {
+      const id = await addRequest({ ...form, cliente: user?.name ?? 'Vecino/a sin identificar' })
+      setTicketId(id)
+      setForm(initialForm)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSending(false)
+    }
   }
 
   if (ticketId) {
@@ -122,8 +132,10 @@ export default function NewRequest() {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary btn-block">
-          Publicar solicitud
+        {error && <p className="form-error">No se pudo publicar: {error}</p>}
+
+        <button type="submit" className="btn btn-primary btn-block" disabled={sending}>
+          {sending ? 'Publicando…' : 'Publicar solicitud'}
         </button>
       </form>
     </div>

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useRequests } from '../context/RequestsContext'
 import { STATUS, STATUS_STEPS, STATUS_LABEL } from '../data/mockData'
 import StatusBadge from '../components/StatusBadge'
+import ApiState from '../components/ApiState'
 import { IconMapPin, IconUser } from '../components/Icons'
 
 export default function Tracking() {
-  const { requests, completeJob } = useRequests()
+  const { requests, completeJob, loading, error } = useRequests()
   const [selectedId, setSelectedId] = useState(requests[0]?.id ?? null)
 
   useEffect(() => {
@@ -22,6 +23,9 @@ export default function Tracking() {
       <h1 className="page__title">Seguimiento de solicitudes</h1>
       <p className="page__lead">Elegí un ticket para ver en qué etapa está.</p>
 
+      <ApiState loading={loading} error={error} loadingText="Cargando solicitudes…" />
+
+      {!loading && !error && (
       <div className="tracking-layout">
         <ul className="tracking-list">
           {requests.map((r) => (
@@ -93,6 +97,7 @@ export default function Tracking() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
