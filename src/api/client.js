@@ -5,6 +5,9 @@ async function request(path, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
+  if (res.status === 503) {
+    throw new Error('Backend caído (el ALB no tiene targets healthy) — no es un bug del front')
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.detail || `${res.status} ${res.statusText}`)
