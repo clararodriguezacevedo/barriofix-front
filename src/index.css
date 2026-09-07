@@ -10,6 +10,8 @@
   --pending: #a9791f;
   --progress: #b8562f;
   --done: #4d6b3f;
+  --assigned: #3f5c6b;
+  --cancelled: #8a8078;
 
   color-scheme: light;
   color: var(--ink);

@@ -1,73 +1,222 @@
-import { useMemo, useState } from 'react'
-import { useRequests } from '../context/RequestsContext'
-import { useUser } from '../context/UserContext'
-import { CATEGORIES, STATUS } from '../data/mockData'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { fetchTrabajos, fotoUrl } from '../api/client'
+import { useSolicitudes } from '../context/SolicitudesContext'
+import { useCatalogos } from '../context/CatalogosContext'
 import RequestTicket from '../components/RequestTicket'
+import UrgenciaBadge from '../components/UrgenciaBadge'
+import Modal from '../components/Modal'
 import ApiState from '../components/ApiState'
+import { IconMapPin, IconUser } from '../components/Icons'
+
+function nombreCompleto(p) {
+  return p ? `${p.nombre} ${p.apellido}` : null
+}
+
+function DetalleTrabajo({ solicitud, tomando, onTomar, onClose }) {
+  if (!solicitud) return null
+  return (
+    <>
+      <div className="chip-row">
+        <span className="chip">{solicitud.categoria?.nombre}</span>
+        <span className="chip">{solicitud.zona?.nombre}</span>
+        <UrgenciaBadge urgencia={solicitud.urgencia} />
+      </div>
+
+      <ul className="ticket__meta">
+        <li>
+          <IconMapPin width={16} height={16} /> {solicitud.direccion}
+        </li>
+        <li>
+          <IconUser width={16} height={16} /> {nombreCompleto(solicitud.cliente)}
+        </li>
+      </ul>
+
+      <p className="ticket__desc">{solicitud.descripcion}</p>
+
+      {solicitud.fotos?.length > 0 && (
+        <div className="media-grid">
+          {solicitud.fotos.map((f) => (
+            <a
+              key={f.id_foto}
+              href={fotoUrl(f.id_foto)}
+              target="_blank"
+              rel="noreferrer"
+              className="media-item"
+            >
+              <img src={fotoUrl(f.id_foto)} alt={f.nombre_archivo} loading="lazy" />
+              <span className="media-item__key">
+                {f.tipo_foto === 'ANTES' ? 'Antes del arreglo' : 'Después del arreglo'}
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      <div className="dialog-body__actions">
+        <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>
+          Cerrar
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          disabled={tomando}
+          onClick={onTomar}
+        >
+          {tomando ? 'Tomando…' : 'Tomar trabajo'}
+        </button>
+      </div>
+    </>
+  )
+}
 
 export default function Jobs() {
-  const { requests, takeJob, loading, error } = useRequests()
-  const { user } = useUser()
-  const [filtro, setFiltro] = useState('Todas')
+  const { aceptar } = useSolicitudes()
+  const { zonas, urgencias } = useCatalogos()
+  const navigate = useNavigate()
 
-  const disponibles = useMemo(
-    () =>
-      requests
-        .filter((r) => r.estado === STATUS.PENDIENTE)
-        .filter((r) => filtro === 'Todas' || r.categoria === filtro),
-    [requests, filtro],
-  )
+  const [trabajos, setTrabajos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState(null)
+  const [idZona, setIdZona] = useState('')
+  const [idUrgencia, setIdUrgencia] = useState('')
+  const [todasLasCategorias, setTodasLasCategorias] = useState(false)
+  const [seleccionada, setSeleccionada] = useState(null)
+  const [tomando, setTomando] = useState(false)
 
-  const nombreProfesional = user?.name ?? 'Profesional invitado'
+  const cargar = useCallback(async () => {
+    setCargando(true)
+    setError(null)
+    try {
+      setTrabajos(
+        await fetchTrabajos({
+          id_zona: idZona || undefined,
+          id_urgencia: idUrgencia || undefined,
+          todas_las_categorias: todasLasCategorias || undefined,
+        }),
+      )
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setCargando(false)
+    }
+  }, [idZona, idUrgencia, todasLasCategorias])
+
+  useEffect(() => {
+    cargar()
+  }, [cargar])
+
+  async function tomar() {
+    if (!seleccionada) return
+    setTomando(true)
+    try {
+      await aceptar(seleccionada.id_solicitud)
+      setTrabajos((prev) => prev.filter((t) => t.id_solicitud !== seleccionada.id_solicitud))
+      setSeleccionada(null)
+      // Cuando la toma, el flujo natural es seguirlo en Seguimiento.
+      navigate('/seguimiento')
+    } catch (e) {
+      setError(e.message)
+      cargar()
+    } finally {
+      setTomando(false)
+    }
+  }
 
   return (
     <div className="page">
       <h1 className="page__title">Trabajos disponibles</h1>
       <p className="page__lead">
-        Estos son los pedidos que todavía no tienen profesional asignado en Villa Alegre.
+        Solicitudes pendientes que coinciden con tus especialidades. Tocá una card para ver el
+        detalle y decidir si la tomás.
       </p>
 
       <div className="chip-row chip-row--filters">
         <button
           type="button"
-          className={'chip' + (filtro === 'Todas' ? ' chip--active' : '')}
-          onClick={() => setFiltro('Todas')}
+          className={'chip' + (!todasLasCategorias ? ' chip--active' : '')}
+          onClick={() => setTodasLasCategorias(false)}
         >
-          Todas
+          Mis especialidades
         </button>
-        {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={'chip' + (filtro === c ? ' chip--active' : '')}
-            onClick={() => setFiltro(c)}
-          >
-            {c}
-          </button>
-        ))}
+        <button
+          type="button"
+          className={'chip' + (todasLasCategorias ? ' chip--active' : '')}
+          onClick={() => setTodasLasCategorias(true)}
+        >
+          Todas las categorías
+        </button>
       </div>
 
-      <ApiState loading={loading} error={error} loadingText="Cargando trabajos…" />
-
-      {!loading && !error && disponibles.length === 0 && (
-        <p className="empty-state">No hay trabajos disponibles en esta categoría por ahora.</p>
-      )}
-
-      {!loading && !error && disponibles.length > 0 && (
-        <div className="ticket-grid">
-          {disponibles.map((r) => (
-            <RequestTicket
-              key={r.id}
-              request={r}
-              footer={
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => takeJob(r.id, nombreProfesional)}>
-                  Tomar trabajo
-                </button>
-              }
-            />
-          ))}
+      <div className="ticket">
+        <div className="field-row">
+          <label className="field">
+            <span>Zona</span>
+            <select value={idZona} onChange={(e) => setIdZona(e.target.value)}>
+              <option value="">Todas</option>
+              {zonas.map((z) => (
+                <option key={z.id_zona} value={z.id_zona}>
+                  {z.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Urgencia</span>
+            <select value={idUrgencia} onChange={(e) => setIdUrgencia(e.target.value)}>
+              <option value="">Todas</option>
+              {urgencias.map((u) => (
+                <option key={u.id_urgencia} value={u.id_urgencia}>
+                  {u.nombre.charAt(0) + u.nombre.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      )}
+      </div>
+
+      <div style={{ marginTop: '20px' }}>
+        <ApiState loading={cargando} error={error} loadingText="Cargando trabajos…" />
+
+        {!cargando && trabajos.length === 0 && !error && (
+          <p className="empty-state">
+            No hay trabajos disponibles con estos filtros. Probá con “Todas las categorías”.
+          </p>
+        )}
+
+        {trabajos.length > 0 && (
+          <div className="ticket-grid">
+            {trabajos.map((s) => (
+              <RequestTicket
+                key={s.id_solicitud}
+                solicitud={s}
+                footer={
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setSeleccionada(s)}
+                  >
+                    Ver detalles
+                  </button>
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={seleccionada !== null}
+        onClose={() => setSeleccionada(null)}
+        title={seleccionada?.titulo}
+      >
+        <DetalleTrabajo
+          solicitud={seleccionada}
+          tomando={tomando}
+          onTomar={tomar}
+          onClose={() => setSeleccionada(null)}
+        />
+      </Modal>
     </div>
   )
 }
