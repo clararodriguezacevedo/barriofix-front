@@ -1,18 +1,33 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { IconWrench } from './Icons'
-import { useUser } from '../context/UserContext'
+import { useAuth } from '../context/AuthContext'
 
-const links = [
-  { to: '/', label: 'Inicio', end: true },
-  { to: '/nueva-solicitud', label: 'Pedir arreglo' },
-  { to: '/trabajos', label: 'Trabajos' },
+// `rol` filtra qué links mostrar: no tiene sentido ofrecerle "Trabajos" a un
+// vecino que no es profesional, la ruta lo rebotaría igual.
+const LINKS = [
+  { to: '/', label: 'Inicio', end: true, publico: true },
+  { to: '/nueva-solicitud', label: 'Pedir arreglo', rol: 'cliente' },
+  { to: '/trabajos', label: 'Trabajos', rol: 'profesional' },
   { to: '/seguimiento', label: 'Seguimiento' },
-  { to: '/historial', label: 'Historial' },
-  { to: '/fotos', label: 'Fotos' },
+  { to: '/perfil', label: 'Perfil' },
 ]
 
 export default function Navbar() {
-  const { user, logout } = useUser()
+  const { usuario, autenticado, esCliente, esProfesional, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const visibles = LINKS.filter((l) => {
+    if (l.publico) return true
+    if (!autenticado) return false
+    if (l.rol === 'cliente') return esCliente
+    if (l.rol === 'profesional') return esProfesional
+    return true
+  })
+
+  function salir() {
+    logout()
+    navigate('/')
+  }
 
   return (
     <header className="navbar">
@@ -25,7 +40,7 @@ export default function Navbar() {
         </NavLink>
 
         <nav className="navbar__links">
-          {links.map((l) => (
+          {visibles.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
@@ -40,12 +55,18 @@ export default function Navbar() {
         </nav>
 
         <div className="navbar__user">
-          {user ? (
+          {autenticado ? (
             <>
               <span className="navbar__hello">
-                Hola, {user.name.split(' ')[0]} <span className="navbar__role">· {user.role}</span>
+                Hola, {usuario.nombre}
+                <span className="navbar__role">
+                  {' '}
+                  ({[esCliente && 'vecino/a', esProfesional && 'profesional']
+                    .filter(Boolean)
+                    .join(' y ')})
+                </span>
               </span>
-              <button type="button" className="btn btn-ghost" onClick={logout}>
+              <button type="button" className="btn btn-ghost" onClick={salir}>
                 Salir
               </button>
             </>

@@ -1,18 +1,24 @@
 import { Link } from 'react-router-dom'
 import { IconHouse, IconBriefcase, IconArrowRight, IconHammer, IconCheck, IconStar } from '../components/Icons'
-import { useRequests } from '../context/RequestsContext'
-import { STATUS } from '../data/mockData'
+import { useSolicitudes } from '../context/SolicitudesContext'
+import { useAuth } from '../context/AuthContext'
+import { ESTADOS } from '../data/estados'
 
 export default function Home() {
-  const { requests } = useRequests()
-  const abiertos = requests.filter((r) => r.estado === STATUS.PENDIENTE).length
-  const enCurso = requests.filter((r) => r.estado === STATUS.EN_PROGRESO).length
-  const resueltos = requests.filter((r) => r.estado === STATUS.COMPLETADO).length
+  const { solicitudes } = useSolicitudes()
+  const { autenticado } = useAuth()
+
+  // Sin sesion la lista viene vacia: los contadores quedan en cero, que es
+  // honesto, en vez de mostrar numeros inventados.
+  const cuenta = (nombre) => solicitudes.filter((s) => s.estado?.nombre === nombre).length
+  const abiertos = cuenta(ESTADOS.PENDIENTE)
+  const enCurso = cuenta(ESTADOS.ASIGNADO) + cuenta(ESTADOS.EN_PROGRESO)
+  const resueltos = cuenta(ESTADOS.RESUELTO)
 
   return (
     <div className="page page--home">
       <section className="hero">
-        <p className="hero__kicker">Red vecinal de reparaciones · Villa Alegre</p>
+        <p className="hero__kicker">Red vecinal de reparaciones</p>
         <h1 className="hero__title">
           Arreglamos el <em>barrio</em>,<br /> un trabajo a la vez.
         </h1>
@@ -22,12 +28,20 @@ export default function Home() {
         </p>
 
         <div className="hero__actions">
-          <Link to="/nueva-solicitud" className="btn btn-primary">
-            <IconHouse width={18} height={18} /> Necesito una reparación
-          </Link>
-          <Link to="/trabajos" className="btn btn-outline">
-            <IconBriefcase width={18} height={18} /> Busco trabajos
-          </Link>
+          {autenticado ? (
+            <>
+              <Link to="/nueva-solicitud" className="btn btn-primary">
+                <IconHouse width={18} height={18} /> Necesito una reparación
+              </Link>
+              <Link to="/trabajos" className="btn btn-outline">
+                <IconBriefcase width={18} height={18} /> Busco trabajos
+              </Link>
+            </>
+          ) : (
+            <Link to="/ingreso" className="btn btn-primary">
+              <IconHouse width={18} height={18} /> Ingresar o registrarme
+            </Link>
+          )}
         </div>
 
         <dl className="hero__stats">
@@ -62,7 +76,7 @@ export default function Home() {
           <li className="steps__item">
             <span className="steps__icon"><IconCheck /></span>
             <h3>3. Seguís el estado</h3>
-            <p>De pendiente a en progreso y completado, con el detalle de quién lo está resolviendo.</p>
+            <p>De pendiente a asignado, en progreso y resuelto, con el historial de cada cambio.</p>
           </li>
           <li className="steps__item">
             <span className="steps__icon"><IconStar /></span>

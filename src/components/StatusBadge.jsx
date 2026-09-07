@@ -1,11 +1,9 @@
-import { STATUS, STATUS_LABEL } from '../data/mockData'
-
-const CLASS_BY_STATUS = {
-  [STATUS.PENDIENTE]: 'badge badge--pendiente',
-  [STATUS.EN_PROGRESO]: 'badge badge--progreso',
-  [STATUS.COMPLETADO]: 'badge badge--completo',
-}
+import { ESTADO_CLASS, ESTADO_LABEL } from '../data/estados'
 
 export default function StatusBadge({ estado }) {
-  return <span className={CLASS_BY_STATUS[estado]}>{STATUS_LABEL[estado]}</span>
+  // `estado` puede llegar como el objeto completo del backend o como el nombre.
+  const nombre = typeof estado === 'string' ? estado : estado?.nombre
+  return (
+    <span className={ESTADO_CLASS[nombre] ?? 'badge'}>{ESTADO_LABEL[nombre] ?? nombre}</span>
+  )
 }
