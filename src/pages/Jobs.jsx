@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchTrabajos, fotoUrl } from '../api/client'
+import { fetchTrabajos } from '../api/client'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useCatalogos } from '../context/CatalogosContext'
 import RequestTicket from '../components/RequestTicket'
@@ -39,12 +39,12 @@ function DetalleTrabajo({ solicitud, tomando, onTomar, onClose }) {
           {solicitud.fotos.map((f) => (
             <a
               key={f.id_foto}
-              href={fotoUrl(f.id_foto)}
+              href={f.url}
               target="_blank"
               rel="noreferrer"
               className="media-item"
             >
-              <img src={fotoUrl(f.id_foto)} alt={f.nombre_archivo} loading="lazy" />
+              <img src={f.url} alt={f.nombre_archivo} loading="lazy" />
               <span className="media-item__key">
                 {f.tipo_foto === 'ANTES' ? 'Antes del arreglo' : 'Después del arreglo'}
               </span>
@@ -88,13 +88,12 @@ export default function Jobs() {
     setCargando(true)
     setError(null)
     try {
-      setTrabajos(
-        await fetchTrabajos({
-          id_zona: idZona || undefined,
-          id_urgencia: idUrgencia || undefined,
-          todas_las_categorias: todasLasCategorias || undefined,
-        }),
-      )
+      const { items } = await fetchTrabajos({
+        id_zona: idZona || undefined,
+        id_urgencia: idUrgencia || undefined,
+        todas_las_categorias: todasLasCategorias || undefined,
+      })
+      setTrabajos(items)
     } catch (e) {
       setError(e.message)
     } finally {

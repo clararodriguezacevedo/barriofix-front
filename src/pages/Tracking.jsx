@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchSeguimiento, fotoUrl, subirFoto } from '../api/client'
+import { fetchSeguimiento, subirFoto } from '../api/client'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useAuth } from '../context/AuthContext'
 import { ESTADOS, ESTADO_LABEL, ORDEN_FILTROS, PASOS } from '../data/estados'
@@ -492,12 +492,12 @@ export default function Tracking() {
                   {actual.fotos.map((f) => (
                     <a
                       key={f.id_foto}
-                      href={fotoUrl(f.id_foto)}
+                      href={f.url}
                       target="_blank"
                       rel="noreferrer"
                       className="media-item"
                     >
-                      <img src={fotoUrl(f.id_foto)} alt={f.nombre_archivo} loading="lazy" />
+                      <img src={f.url} alt={f.nombre_archivo} loading="lazy" />
                       <span className="media-item__key">
                         {f.tipo_foto === 'ANTES' ? 'Antes del arreglo' : 'Después del arreglo'}
                       </span>

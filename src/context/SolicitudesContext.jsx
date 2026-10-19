@@ -27,7 +27,8 @@ export function SolicitudesProvider({ children }) {
     setCargando(true)
     setError(null)
     try {
-      setSolicitudes(await fetchSolicitudes())
+      const { items } = await fetchSolicitudes()
+      setSolicitudes(items)
     } catch (e) {
       setError(e.message)
     } finally {
