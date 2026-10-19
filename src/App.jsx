@@ -1,4 +1,6 @@
-import { Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
@@ -10,6 +12,17 @@ import History from './pages/History'
 import './App.css'
 
 function App() {
+  // Si la cuenta existe en Cognito pero falta el perfil, mandamos al formulario
+  // de completar registro (la Hosted UI deja al usuario en "/" tras el login).
+  const { necesitaPerfil } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    if (necesitaPerfil && location.pathname !== '/ingreso') {
+      navigate('/ingreso', { replace: true })
+    }
+  }, [necesitaPerfil, location.pathname, navigate])
+
   return (
     <div className="app-shell">
       <Navbar />

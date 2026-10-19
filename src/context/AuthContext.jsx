@@ -2,38 +2,48 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   fetchMe,
   getToken,
-  login as loginApi,
+  leerTokensDeLaUrl,
+  limpiarTokens,
+  loginUrl,
   onSesionVencida,
   registro as registroApi,
-  setToken,
 } from '../api/client'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null)
-  // Arranca en true si hay token guardado: hay que validarlo contra el backend
-  // antes de dibujar nada, o las rutas protegidas parpadean hacia /ingreso.
-  const [cargando, setCargando] = useState(Boolean(getToken()))
+  // La cuenta existe en Cognito pero todavia no cargo su perfil en DynamoDB:
+  // hay que mostrar el formulario para completarlo.
+  const [necesitaPerfil, setNecesitaPerfil] = useState(false)
+  const [cargando, setCargando] = useState(true)
 
   const logout = useCallback(() => {
-    setToken(null)
+    limpiarTokens()
     setUsuario(null)
+    setNecesitaPerfil(false)
   }, [])
 
-  // El token puede haber vencido mientras la pestaña estaba abierta. El client
-  // avisa con un evento y acá cerramos la sesión una sola vez, en lugar de que
-  // cada pantalla maneje su propio 401.
   useEffect(() => onSesionVencida(logout), [logout])
 
   useEffect(() => {
+    // Primero: si volvemos del callback de Cognito, tomar los tokens del fragment.
+    leerTokensDeLaUrl()
+
     if (!getToken()) {
       setCargando(false)
       return
     }
     fetchMe()
-      .then(setUsuario)
-      .catch(() => logout())
+      .then((yo) => setUsuario(yo))
+      .catch((e) => {
+        if (e.status === 404) {
+          // Autenticado en Cognito pero sin perfil: a completar el registro.
+          setNecesitaPerfil(true)
+        } else {
+          logout()
+        }
+      })
       .finally(() => setCargando(false))
   }, [logout])
 
@@ -41,27 +51,26 @@ export function AuthProvider({ children }) {
     () => ({
       usuario,
       cargando,
+      necesitaPerfil,
       autenticado: Boolean(usuario),
       esCliente: Boolean(usuario?.es_cliente),
       esProfesional: Boolean(usuario?.es_profesional),
       esAdmin: Boolean(usuario?.es_admin),
 
-      async login(username, password) {
-        const data = await loginApi(username, password)
-        setToken(data.access_token)
-        setUsuario(data.usuario)
-        return data.usuario
+      /** Redirige a la Hosted UI de Cognito (login y registro en un solo lugar). */
+      login() {
+        window.location.assign(loginUrl())
       },
 
+      /** Completa el perfil en DynamoDB tras el alta en Cognito. */
       async registro(payload) {
-        const data = await registroApi(payload)
-        setToken(data.access_token)
-        setUsuario(data.usuario)
-        return data.usuario
+        await registroApi(payload)
+        const yo = await fetchMe()
+        setUsuario(yo)
+        setNecesitaPerfil(false)
+        return yo
       },
 
-      /** Se llama después de darse de alta como profesional, para que la app
-       *  vea el rol nuevo sin obligar a volver a entrar. */
       async refrescar() {
         const yo = await fetchMe()
         setUsuario(yo)
@@ -70,7 +79,7 @@ export function AuthProvider({ children }) {
 
       logout,
     }),
-    [usuario, cargando, logout],
+    [usuario, cargando, necesitaPerfil, logout],
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>
