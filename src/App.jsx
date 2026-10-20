@@ -67,7 +67,6 @@ function App() {
       </main>
       <footer className="app-footer">
         <span>BarrioFix, red vecinal de reparaciones</span>
-        <span>Ciudad de Buenos Aires y AMBA</span>
       </footer>
     </div>
   )
