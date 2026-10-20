@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { fetchSeguimiento, subirFoto } from '../api/client'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useAuth } from '../context/AuthContext'
@@ -189,7 +190,9 @@ export default function Tracking() {
   const { solicitudes, cargando, error, recargar, iniciar, resolver, liberar, cancelar } =
     useSolicitudes()
   const { usuario } = useAuth()
-  const [seleccionada, setSeleccionada] = useState(null)
+  const location = useLocation()
+  // Si venimos de "Tomar trabajo", arrancamos con esa solicitud seleccionada.
+  const [seleccionada, setSeleccionada] = useState(location.state?.seleccionar ?? null)
   const [accionError, setAccionError] = useState(null)
   const [trabajando, setTrabajando] = useState(false)
   const [refresco, setRefresco] = useState(0)
@@ -214,7 +217,9 @@ export default function Tracking() {
   }, [solicitudes, filtroEstado])
 
   useEffect(() => {
-    if (!visibles.some((s) => s.id_solicitud === seleccionada)) {
+    // Solo reseleccionamos cuando ya hay lista: así una preselección que todavía
+    // no llegó en los datos (recién tomada) no se pisa mientras carga.
+    if (visibles.length > 0 && !visibles.some((s) => s.id_solicitud === seleccionada)) {
       setSeleccionada(visibles[0]?.id_solicitud ?? null)
     }
   }, [visibles, seleccionada])
@@ -420,7 +425,6 @@ export default function Tracking() {
                     setAccionError(null)
                   }}
                 >
-                  <span className="tracking-list__id">#{s.id_solicitud}</span>
                   <span className="tracking-list__title">{s.titulo}</span>
                   <StatusBadge estado={s.estado} />
                 </button>
@@ -431,7 +435,6 @@ export default function Tracking() {
           {actual && (
             <div className="ticket tracking-detail">
               <div className="ticket__top">
-                <span className="ticket__id">#{actual.id_solicitud}</span>
                 <StatusBadge estado={actual.estado} />
               </div>
               <h2 className="ticket__title">{actual.titulo}</h2>
@@ -483,7 +486,7 @@ export default function Tracking() {
                 </li>
               </ul>
 
-              <span className="ticket__category">Descripción</span>
+              <p className="ticket__desc-label">Descripción</p>
 
               <p className="ticket__desc">{actual.descripcion}</p>
 

@@ -11,7 +11,6 @@ export default function RequestTicket({ solicitud, footer }) {
   return (
     <article className="ticket">
       <div className="ticket__top">
-        <span className="ticket__id">#{solicitud.id_solicitud}</span>
         <StatusBadge estado={solicitud.estado} />
       </div>
 

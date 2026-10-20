@@ -53,7 +53,6 @@ function HistoryTicket({ solicitud, onCalificar, puedeCalificar }) {
   return (
     <article className="ticket">
       <div className="ticket__top">
-        <span className="ticket__id">#{solicitud.id_solicitud}</span>
         <StatusBadge estado={solicitud.estado} />
       </div>
       <h3 className="ticket__title">{solicitud.titulo}</h3>

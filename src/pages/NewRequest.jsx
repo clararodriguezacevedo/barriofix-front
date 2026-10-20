@@ -92,8 +92,8 @@ export default function NewRequest() {
           </span>
           <h1>¡Listo, quedó cargada!</h1>
           <p>
-            Tu solicitud <strong>#{creada.id_solicitud}</strong> ya está publicada como pendiente
-            para que un profesional de <strong>{creada.zona.nombre}</strong> la tome.
+            Tu solicitud ya está publicada como pendiente para que un profesional de{' '}
+            <strong>{creada.zona.nombre}</strong> la tome.
           </p>
           <div className="confirm-ticket__actions">
             <button type="button" className="btn btn-outline" onClick={() => setCreada(null)}>
