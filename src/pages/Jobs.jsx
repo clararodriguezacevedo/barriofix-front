@@ -45,9 +45,6 @@ function DetalleTrabajo({ solicitud, tomando, error, onTomar, onClose }) {
               className="media-item"
             >
               <img src={f.url} alt={f.nombre_archivo} loading="lazy" />
-              <span className="media-item__key">
-                {f.tipo_foto === 'ANTES' ? 'Antes del arreglo' : 'Después del arreglo'}
-              </span>
             </a>
           ))}
         </div>
