@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useCatalogos } from '../context/CatalogosContext'
@@ -23,22 +23,20 @@ export default function NewRequest() {
   const [creada, setCreada] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
+  const fotoInputRef = useRef(null)
 
-  // Los selects arrancan vacíos hasta que llegan los catálogos; en cuanto
-  // llegan, elegimos un default razonable para que el form no quede a medio
-  // llenar sin que se note.
+  // Categoría y zona arrancan vacías (las elige el usuario): evitamos
+  // pre-seleccionar la primera alfabética y que se mande sin querer. La urgencia
+  // sí lleva un default razonable (la del medio), que se ve como chip activo.
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
-      id_categoria: prev.id_categoria || categorias[0]?.id_categoria || '',
-      id_zona: prev.id_zona || zonas[0]?.id_zona || '',
       id_urgencia:
         prev.id_urgencia ||
-        // La urgencia del medio como default: ni la más baja ni la más alta.
         urgencias[Math.floor(urgencias.length / 2)]?.id_urgencia ||
         '',
     }))
-  }, [categorias, zonas, urgencias])
+  }, [urgencias])
 
   function actualizar(campo, valor) {
     setForm((prev) => ({ ...prev, [campo]: valor }))
@@ -140,6 +138,7 @@ export default function NewRequest() {
                 value={form.id_categoria}
                 onChange={(e) => actualizar('id_categoria', e.target.value)}
               >
+                <option value="">Elegí una categoría</option>
                 {categorias.map((c) => (
                   <option key={c.id_categoria} value={c.id_categoria}>
                     {c.nombre}
@@ -151,6 +150,7 @@ export default function NewRequest() {
             <label className="field">
               <span>Zona</span>
               <select value={form.id_zona} onChange={(e) => actualizar('id_zona', e.target.value)}>
+                <option value="">Elegí una zona</option>
                 {zonas.map((z) => (
                   <option key={z.id_zona} value={z.id_zona}>
                     {z.nombre}
@@ -198,21 +198,30 @@ export default function NewRequest() {
             </div>
           </div>
 
-          <label className="field">
+          <div className="field">
             <span>Fotos del problema, antes del arreglo (opcional)</span>
             <input
+              ref={fotoInputRef}
               type="file"
               accept="image/*"
               multiple
+              hidden
               onChange={(e) => setFotos(Array.from(e.target.files ?? []))}
             />
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => fotoInputRef.current?.click()}
+            >
+              Elegir fotos
+            </button>
             {fotos.length > 0 && (
               <small className="auth-card__hint">
                 {fotos.length} archivo{fotos.length > 1 ? 's' : ''} seleccionado
-                {fotos.length > 1 ? 's' : ''}.
+                {fotos.length > 1 ? 's' : ''}
               </small>
             )}
-          </label>
+          </div>
 
           {error && <p className="form-error">No se pudo publicar: {error}</p>}
 
