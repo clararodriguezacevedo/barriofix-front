@@ -13,7 +13,7 @@ const LINKS = [
 ]
 
 export default function Navbar() {
-  const { usuario, autenticado, esCliente, esProfesional, logout } = useAuth()
+  const { usuario, autenticado, esCliente, esProfesional, login, logout } = useAuth()
   const navigate = useNavigate()
 
   const visibles = LINKS.filter((l) => {
@@ -71,9 +71,9 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <NavLink to="/ingreso" className="btn btn-outline btn-sm">
+            <button type="button" className="btn btn-outline btn-sm" onClick={login}>
               Ingresar
-            </NavLink>
+            </button>
           )}
         </div>
       </div>
