@@ -10,6 +10,8 @@ export const config = {
   cognitoDomain: '',
   cognitoClientId: '',
   region: 'us-east-1',
+  // Vacía = sin mapa (el front degrada a solo la dirección)
+  googleMapsApiKey: '',
 }
 
 export async function cargarConfig() {

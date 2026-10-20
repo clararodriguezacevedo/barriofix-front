@@ -8,6 +8,7 @@ import UrgenciaBadge from '../components/UrgenciaBadge'
 import Modal from '../components/Modal'
 import ApiState from '../components/ApiState'
 import { IconMapPin, IconUser } from '../components/Icons'
+import { MapaEstatico } from '../components/MapaUbicacion'
 
 function nombreCompleto(p) {
   return p ? `${p.nombre} ${p.apellido}` : null
@@ -33,6 +34,8 @@ function DetalleTrabajo({ solicitud, tomando, error, onTomar, onClose }) {
       </ul>
 
       <p className="ticket__desc">{solicitud.descripcion}</p>
+
+      <MapaEstatico lat={solicitud.lat} lng={solicitud.lng} />
 
       {solicitud.fotos?.length > 0 && (
         <div className="media-grid">

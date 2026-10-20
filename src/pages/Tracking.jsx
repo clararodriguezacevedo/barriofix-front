@@ -9,6 +9,7 @@ import UrgenciaBadge from '../components/UrgenciaBadge'
 import Modal from '../components/Modal'
 import ApiState from '../components/ApiState'
 import { IconMapPin, IconUser } from '../components/Icons'
+import { MapaEstatico } from '../components/MapaUbicacion'
 
 function nombreCompleto(p) {
   return p ? `${p.nombre} ${p.apellido}` : null
@@ -508,6 +509,8 @@ export default function Tracking() {
               <p className="ticket__desc-label">Descripción</p>
 
               <p className="ticket__desc">{actual.descripcion}</p>
+
+              <MapaEstatico lat={actual.lat} lng={actual.lng} />
 
               {actual.fotos?.length > 0 && (
                 <div className="media-grid">
