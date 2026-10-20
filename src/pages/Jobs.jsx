@@ -13,7 +13,7 @@ function nombreCompleto(p) {
   return p ? `${p.nombre} ${p.apellido}` : null
 }
 
-function DetalleTrabajo({ solicitud, tomando, onTomar, onClose }) {
+function DetalleTrabajo({ solicitud, tomando, error, onTomar, onClose }) {
   if (!solicitud) return null
   return (
     <>
@@ -53,8 +53,10 @@ function DetalleTrabajo({ solicitud, tomando, onTomar, onClose }) {
         </div>
       )}
 
+      {error && <p className="form-error">No se pudo tomar el trabajo: {error}</p>}
+
       <div className="dialog-body__actions">
-        <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>
+        <button type="button" className="btn btn-outline btn-sm" onClick={onClose} disabled={tomando}>
           Cerrar
         </button>
         <button
@@ -83,6 +85,17 @@ export default function Jobs() {
   const [todasLasCategorias, setTodasLasCategorias] = useState(false)
   const [seleccionada, setSeleccionada] = useState(null)
   const [tomando, setTomando] = useState(false)
+  const [errorTomar, setErrorTomar] = useState(null)
+
+  function abrirDetalle(s) {
+    setErrorTomar(null)
+    setSeleccionada(s)
+  }
+  function cerrarDetalle() {
+    if (tomando) return
+    setErrorTomar(null)
+    setSeleccionada(null)
+  }
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -106,17 +119,20 @@ export default function Jobs() {
   }, [cargar])
 
   async function tomar() {
-    if (!seleccionada) return
+    // Guarda contra doble submit: si ya estamos tomando, ignorar más clicks.
+    if (!seleccionada || tomando) return
+    const id = seleccionada.id_solicitud
     setTomando(true)
+    setErrorTomar(null)
     try {
-      await aceptar(seleccionada.id_solicitud)
-      setTrabajos((prev) => prev.filter((t) => t.id_solicitud !== seleccionada.id_solicitud))
+      await aceptar(id)
+      setTrabajos((prev) => prev.filter((t) => t.id_solicitud !== id))
       setSeleccionada(null)
-      // Cuando la toma, el flujo natural es seguirlo en Seguimiento.
-      navigate('/seguimiento')
+      // Al tomarla, el flujo natural es seguir ESE trabajo en Seguimiento.
+      navigate('/seguimiento', { state: { seleccionar: id } })
     } catch (e) {
-      setError(e.message)
-      cargar()
+      // El error va dentro del modal, no atrás, para que se vea.
+      setErrorTomar(e.message)
     } finally {
       setTomando(false)
     }
@@ -183,7 +199,7 @@ export default function Jobs() {
           </p>
         )}
 
-        {trabajos.length > 0 && (
+        {!cargando && !error && trabajos.length > 0 && (
           <div className="ticket-grid">
             {trabajos.map((s) => (
               <RequestTicket
@@ -193,7 +209,7 @@ export default function Jobs() {
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
-                    onClick={() => setSeleccionada(s)}
+                    onClick={() => abrirDetalle(s)}
                   >
                     Ver detalles
                   </button>
@@ -206,14 +222,15 @@ export default function Jobs() {
 
       <Modal
         open={seleccionada !== null}
-        onClose={() => setSeleccionada(null)}
+        onClose={cerrarDetalle}
         title={seleccionada?.titulo}
       >
         <DetalleTrabajo
           solicitud={seleccionada}
           tomando={tomando}
+          error={errorTomar}
           onTomar={tomar}
-          onClose={() => setSeleccionada(null)}
+          onClose={cerrarDetalle}
         />
       </Modal>
     </div>
