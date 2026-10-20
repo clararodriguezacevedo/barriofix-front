@@ -11,6 +11,9 @@ import { useEffect, useRef } from 'react'
  */
 export default function Modal({ open, onClose, title, children }) {
   const ref = useRef(null)
+  // Solo cerramos si el gesto empezó Y terminó sobre el backdrop. Así, arrastrar
+  // desde adentro (p. ej. seleccionando texto) y soltar afuera no cierra el modal.
+  const apretadoEnBackdrop = useRef(false)
 
   useEffect(() => {
     const dialog = ref.current
@@ -19,14 +22,17 @@ export default function Modal({ open, onClose, title, children }) {
     if (!open && dialog.open) dialog.close()
   }, [open])
 
-  // Cerrar con click en el backdrop: comparar target contra el dialog mismo,
-  // porque el click en el backdrop se dispara con el dialog como target.
+  function handleMouseDown(e) {
+    apretadoEnBackdrop.current = e.target === ref.current
+  }
+
   function handleClick(e) {
-    if (e.target === ref.current) onClose()
+    if (e.target === ref.current && apretadoEnBackdrop.current) onClose()
+    apretadoEnBackdrop.current = false
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} onClick={handleClick}>
+    <dialog ref={ref} onClose={onClose} onMouseDown={handleMouseDown} onClick={handleClick}>
       <div className="dialog-body">
         {title && <h2>{title}</h2>}
         {children}
