@@ -1,12 +1,49 @@
 import { Link } from 'react-router-dom'
-import { IconHouse, IconBriefcase, IconArrowRight, IconHammer, IconCheck, IconStar } from '../components/Icons'
+import {
+  IconHouse,
+  IconBriefcase,
+  IconHammer,
+  IconCheck,
+  IconStar,
+  IconWrench,
+  IconBolt,
+  IconFlame,
+  IconRoller,
+  IconBrick,
+} from '../components/Icons'
 import { useSolicitudes } from '../context/SolicitudesContext'
+import { useCatalogos } from '../context/CatalogosContext'
 import { useAuth } from '../context/AuthContext'
 import { ESTADOS } from '../data/estados'
 
+// Icono + descriptor por oficio. La clave va normalizada (sin acentos, en
+// minúscula) para matchear el nombre que venga del backend.
+const OFICIOS = {
+  plomeria: { icon: IconWrench, desc: 'Caños, canillas y pérdidas' },
+  electricidad: { icon: IconBolt, desc: 'Tableros, enchufes y luces' },
+  gas: { icon: IconFlame, desc: 'Instalaciones y artefactos' },
+  carpinteria: { icon: IconHammer, desc: 'Muebles, puertas y estantes' },
+  pintura: { icon: IconRoller, desc: 'Interiores y humedad' },
+  albanileria: { icon: IconBrick, desc: 'Humedad, revoques y arreglos' },
+}
+const OFICIO_FALLBACK = { icon: IconWrench, desc: 'Profesionales del barrio' }
+const OFICIOS_DEFAULT = [
+  { nombre: 'Plomería' },
+  { nombre: 'Electricidad' },
+  { nombre: 'Carpintería' },
+  { nombre: 'Pintura' },
+]
+const normalizar = (s) =>
+  (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 export default function Home() {
   const { solicitudes } = useSolicitudes()
+  const { categorias } = useCatalogos()
   const { autenticado } = useAuth()
+
+  // Vitrina de oficios: usamos las categorías reales si ya cargaron; si no,
+  // un set por defecto para que el hero nunca quede a medio dibujar.
+  const oficios = (categorias.length ? categorias : OFICIOS_DEFAULT).slice(0, 4)
 
   // Sin sesion la lista viene vacia: los contadores quedan en cero, que es
   // honesto, en vez de mostrar numeros inventados.
@@ -18,46 +55,68 @@ export default function Home() {
   return (
     <div className="page page--home">
       <section className="hero">
-        <p className="hero__kicker">Red vecinal de reparaciones</p>
-        <h1 className="hero__title">
-          Arreglamos el <em>barrio</em>,<br /> un trabajo a la vez.
-        </h1>
-        <p className="hero__lead">
-          Publicá tu problema de plomería, electricidad o lo que se te rompió, y un profesional de
-          confianza del barrio se ocupa. Sin vueltas, con seguimiento claro de principio a fin.
-        </p>
+        <div className="hero__content">
+          <p className="hero__kicker">Red vecinal de reparaciones</p>
+          <h1 className="hero__title">
+            Arreglamos el <em>barrio</em>,<br /> un trabajo a la vez.
+          </h1>
+          <p className="hero__lead">
+            Publicá tu problema de plomería, electricidad o lo que se te rompió, y un profesional de
+            confianza del barrio se ocupa. Sin vueltas, con seguimiento claro de principio a fin.
+          </p>
 
-        <div className="hero__actions">
-          {autenticado ? (
-            <>
-              <Link to="/nueva-solicitud" className="btn btn-primary">
-                <IconHouse width={18} height={18} /> Necesito una reparación
+          <div className="hero__actions">
+            {autenticado ? (
+              <>
+                <Link to="/nueva-solicitud" className="btn btn-primary">
+                  <IconHouse width={18} height={18} /> Necesito una reparación
+                </Link>
+                <Link to="/trabajos" className="btn btn-outline">
+                  <IconBriefcase width={18} height={18} /> Busco trabajos
+                </Link>
+              </>
+            ) : (
+              <Link to="/ingreso" className="btn btn-primary">
+                <IconHouse width={18} height={18} /> Ingresar o registrarme
               </Link>
-              <Link to="/trabajos" className="btn btn-outline">
-                <IconBriefcase width={18} height={18} /> Busco trabajos
-              </Link>
-            </>
-          ) : (
-            <Link to="/ingreso" className="btn btn-primary">
-              <IconHouse width={18} height={18} /> Ingresar o registrarme
-            </Link>
-          )}
+            )}
+          </div>
+
+          <dl className="hero__stats">
+            <div>
+              <dt>{abiertos}</dt>
+              <dd>solicitudes abiertas</dd>
+            </div>
+            <div>
+              <dt>{enCurso}</dt>
+              <dd>en manos de un profesional</dd>
+            </div>
+            <div>
+              <dt>{resueltos}</dt>
+              <dd>arreglos resueltos</dd>
+            </div>
+          </dl>
         </div>
 
-        <dl className="hero__stats">
-          <div>
-            <dt>{abiertos}</dt>
-            <dd>solicitudes abiertas</dd>
-          </div>
-          <div>
-            <dt>{enCurso}</dt>
-            <dd>en manos de un profesional</dd>
-          </div>
-          <div>
-            <dt>{resueltos}</dt>
-            <dd>arreglos resueltos</dd>
-          </div>
-        </dl>
+        {/* Vitrina de oficios disponibles: le da color y cuenta de un vistazo
+            qué se puede resolver acá. */}
+        <div className="hero__cats">
+          {oficios.map((o) => {
+            const meta = OFICIOS[normalizar(o.nombre)] ?? OFICIO_FALLBACK
+            const Icono = meta.icon
+            return (
+              <div className="hero__cat" key={o.nombre}>
+                <span className="hero__cat-ic">
+                  <Icono width={20} height={20} />
+                </span>
+                <div>
+                  <b>{o.nombre}</b>
+                  <span>{meta.desc}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </section>
 
       <section className="steps">
@@ -87,13 +146,16 @@ export default function Home() {
       </section>
 
       <section className="cta-strip">
+        <span className="cta-strip__icon">
+          <IconBriefcase width={22} height={22} />
+        </span>
         <div>
           <h2>¿Sos profesional del barrio?</h2>
-          <p>Sumate y elegí los trabajos que más se ajustan a tu oficio y tu zona.</p>
+          <p>
+            Sumate a BarrioFix y elegí los trabajos que más se ajustan a tu oficio y tu zona.
+            Registrate desde el botón de arriba.
+          </p>
         </div>
-        <Link to="/ingreso" className="btn btn-primary btn-sm">
-          Registrarme <IconArrowRight width={16} height={16} />
-        </Link>
       </section>
     </div>
   )

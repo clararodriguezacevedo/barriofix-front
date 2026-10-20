@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useCatalogos } from '../context/CatalogosContext'
-import { IconUser, IconBriefcase } from '../components/Icons'
+import { IconUser, IconBriefcase, IconCheck } from '../components/Icons'
 
 export default function Auth() {
   const { autenticado, necesitaPerfil, login, registro } = useAuth()
@@ -135,8 +135,28 @@ export default function Auth() {
   }
 
   // Caso 3: sin sesión -> botón a la Hosted UI (login y registro en un solo lugar).
+  const puntos = [
+    'Pedí un arreglo en minutos y seguí cada paso hasta que queda resuelto.',
+    'Profesionales del barrio, con calificaciones de vecinos reales.',
+    'Una sola cuenta para pedir arreglos y, si querés, tomar trabajos.',
+  ]
   return (
-    <div className="page page--auth">
+    <div className="page auth-split">
+      <section className="auth-hero">
+        <p className="hero__kicker">Red vecinal de reparaciones</p>
+        <h1 className="auth-hero__title">Tu barrio, a una mano de distancia.</h1>
+        <ul className="auth-hero__points">
+          {puntos.map((p) => (
+            <li key={p}>
+              <span className="auth-hero__check">
+                <IconCheck width={15} height={15} />
+              </span>
+              {p}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="auth-card ticket">
         <h1 className="auth-card__title">Ingresá a BarrioFix</h1>
         <p className="page__lead">

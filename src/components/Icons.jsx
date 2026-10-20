@@ -96,3 +96,37 @@ export function IconMapPin(props) {
     </svg>
   )
 }
+
+export function IconBolt(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m13 2-9 12h7l-1 8 9-12h-7z" />
+    </svg>
+  )
+}
+
+export function IconFlame(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 21a6 6 0 0 0 6-6c0-4-3-6.5-4-9-1.3 2-3 3.2-3 5.2-1.2-.5-1.8-1.6-2-2.7C7.5 10 6 12.5 6 15a6 6 0 0 0 6 6z" />
+    </svg>
+  )
+}
+
+export function IconRoller(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4" y="4" width="12" height="5" rx="1" />
+      <path d="M10 9v2.5H9A2 2 0 0 0 7 13.5V21" />
+    </svg>
+  )
+}
+
+export function IconBrick(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3.5" y="7" width="17" height="10" rx="1" />
+      <path d="M3.5 12h17M9 7v5M15 12v5" />
+    </svg>
+  )
+}
