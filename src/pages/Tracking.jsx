@@ -522,7 +522,7 @@ export default function Tracking() {
                   Trabajo resuelto
                   {actual.calificacion
                     ? `, calificado con ${actual.calificacion.puntuacion} de 5.`
-                    : '. Podés calificarlo desde el historial.'}
+                    : '. Podés calificarlo desde tu perfil.'}
                 </p>
               )}
 

@@ -27,23 +27,23 @@ const OFICIOS = {
   albanileria: { icon: IconBrick, desc: 'Humedad, revoques y arreglos' },
 }
 const OFICIO_FALLBACK = { icon: IconWrench, desc: 'Profesionales del barrio' }
-const OFICIOS_DEFAULT = [
-  { nombre: 'Plomería' },
-  { nombre: 'Electricidad' },
-  { nombre: 'Carpintería' },
-  { nombre: 'Pintura' },
-]
+// Oficios a destacar en el hero: un set curado y representativo, no las primeras
+// categorias alfabeticas (que caian en rubros raros como "Afilado de herramientas")
+const SHOWCASE = ['Plomería', 'Electricidad', 'Gas', 'Carpintería']
 const normalizar = (s) =>
   (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 export default function Home() {
   const { solicitudes } = useSolicitudes()
   const { categorias } = useCatalogos()
-  const { autenticado } = useAuth()
+  const { autenticado, esCliente, esProfesional, login } = useAuth()
 
-  // Vitrina de oficios: usamos las categorías reales si ya cargaron; si no,
-  // un set por defecto para que el hero nunca quede a medio dibujar.
-  const oficios = (categorias.length ? categorias : OFICIOS_DEFAULT).slice(0, 4)
+  // Vitrina de oficios: el set curado, matcheado con las categorías reales si ya
+  // cargaron, para que el hero sea representativo y no alfabético.
+  const oficios = SHOWCASE.map(
+    (nombre) =>
+      categorias.find((c) => normalizar(c.nombre) === normalizar(nombre)) ?? { nombre },
+  )
 
   // Sin sesion la lista viene vacia: los contadores quedan en cero, que es
   // honesto, en vez de mostrar numeros inventados.
@@ -66,18 +66,22 @@ export default function Home() {
           </p>
 
           <div className="hero__actions">
-            {autenticado ? (
-              <>
-                <Link to="/nueva-solicitud" className="btn btn-primary">
-                  <IconHouse width={18} height={18} /> Necesito una reparación
-                </Link>
-                <Link to="/trabajos" className="btn btn-outline">
-                  <IconBriefcase width={18} height={18} /> Busco trabajos
-                </Link>
-              </>
-            ) : (
-              <Link to="/ingreso" className="btn btn-primary">
+            {/* Sin sesión, directo a la Hosted UI (sin pasar por /ingreso). Con
+                sesión, solo el CTA que corresponde al rol, así no se cae en una
+                pantalla de acceso denegado. */}
+            {!autenticado && (
+              <button type="button" className="btn btn-primary" onClick={login}>
                 <IconHouse width={18} height={18} /> Ingresar o registrarme
+              </button>
+            )}
+            {autenticado && esCliente && (
+              <Link to="/nueva-solicitud" className="btn btn-primary">
+                <IconHouse width={18} height={18} /> Necesito una reparación
+              </Link>
+            )}
+            {autenticado && esProfesional && (
+              <Link to="/trabajos" className="btn btn-outline">
+                <IconBriefcase width={18} height={18} /> Busco trabajos
               </Link>
             )}
           </div>
