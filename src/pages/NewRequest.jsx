@@ -5,6 +5,7 @@ import { useCatalogos } from '../context/CatalogosContext'
 import { subirFoto } from '../api/client'
 import { IconCheck } from '../components/Icons'
 import ApiState from '../components/ApiState'
+import { MapaPicker } from '../components/MapaUbicacion'
 
 export default function NewRequest() {
   const { crear } = useSolicitudes()
@@ -20,6 +21,7 @@ export default function NewRequest() {
     id_urgencia: '',
   })
   const [fotos, setFotos] = useState([])
+  const [ubicacion, setUbicacion] = useState(null)
   const [creada, setCreada] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
@@ -64,6 +66,7 @@ export default function NewRequest() {
         id_categoria: Number(form.id_categoria),
         id_zona: Number(form.id_zona),
         id_urgencia: Number(form.id_urgencia),
+        ...(ubicacion ? { lat: ubicacion.lat, lng: ubicacion.lng } : {}),
       })
 
       // Las fotos van después: la solicitud tiene que existir para poder
@@ -169,6 +172,15 @@ export default function NewRequest() {
               maxLength={255}
             />
           </label>
+
+          <div className="field">
+            <span>Ubicación en el mapa (opcional)</span>
+            <MapaPicker
+              lat={ubicacion?.lat}
+              lng={ubicacion?.lng}
+              onChange={(lat, lng) => setUbicacion({ lat, lng })}
+            />
+          </div>
 
           <label className="field">
             <span>Descripción</span>

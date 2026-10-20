@@ -8,6 +8,7 @@ import UrgenciaBadge from '../components/UrgenciaBadge'
 import Modal from '../components/Modal'
 import ApiState from '../components/ApiState'
 import { IconMapPin, IconUser } from '../components/Icons'
+import { MapaEstatico } from '../components/MapaUbicacion'
 
 function nombreCompleto(p) {
   return p ? `${p.nombre} ${p.apellido}` : null
@@ -34,6 +35,8 @@ function DetalleTrabajo({ solicitud, tomando, error, onTomar, onClose }) {
 
       <p className="ticket__desc">{solicitud.descripcion}</p>
 
+      <MapaEstatico lat={solicitud.lat} lng={solicitud.lng} />
+
       {solicitud.fotos?.length > 0 && (
         <div className="media-grid">
           {solicitud.fotos.map((f) => (
@@ -45,9 +48,6 @@ function DetalleTrabajo({ solicitud, tomando, error, onTomar, onClose }) {
               className="media-item"
             >
               <img src={f.url} alt={f.nombre_archivo} loading="lazy" />
-              <span className="media-item__key">
-                {f.tipo_foto === 'ANTES' ? 'Antes del arreglo' : 'Después del arreglo'}
-              </span>
             </a>
           ))}
         </div>

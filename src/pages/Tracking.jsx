@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fetchSeguimiento, subirFoto } from '../api/client'
+import { fetchFotos, fetchSeguimiento, subirFoto } from '../api/client'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useAuth } from '../context/AuthContext'
 import { ESTADOS, ESTADO_LABEL, ORDEN_FILTROS, PASOS } from '../data/estados'
@@ -9,6 +9,7 @@ import UrgenciaBadge from '../components/UrgenciaBadge'
 import Modal from '../components/Modal'
 import ApiState from '../components/ApiState'
 import { IconMapPin, IconUser } from '../components/Icons'
+import { MapaEstatico } from '../components/MapaUbicacion'
 
 function nombreCompleto(p) {
   return p ? `${p.nombre} ${p.apellido}` : null
@@ -17,6 +18,21 @@ function nombreCompleto(p) {
 function fechaHora(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+// La foto se registra en DynamoDB de forma asíncrona (evento S3 -> Lambda), así
+// que tras subir reintentamos leer la lista hasta que aparezca o se agote el tiempo,
+// para que no quede "subida pero sin verse".
+async function esperarFotos(idSolicitud, minimo, intentos = 6, esperaMs = 1200) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const fotos = await fetchFotos(idSolicitud)
+      if (fotos.length >= minimo) return
+    } catch {
+      // reintentamos igual
+    }
+    await new Promise((r) => setTimeout(r, esperaMs))
+  }
 }
 
 /**
@@ -306,13 +322,17 @@ export default function Tracking() {
 
   async function subirArchivos(archivos) {
     if (archivos.length === 0) return
+    const id = actual.id_solicitud
+    const previas = actual.fotos?.length ?? 0
     setSubiendoFoto(true)
     setAccionError(null)
     try {
       for (const archivo of archivos) {
-        await subirFoto(actual.id_solicitud, archivo)
+        await subirFoto(id, archivo)
       }
       if (fotoInputRef.current) fotoInputRef.current.value = ''
+      // Esperamos a que el registro async aparezca antes de refrescar la UI.
+      await esperarFotos(id, previas + archivos.length)
       await recargar()
       setRefresco((n) => n + 1)
     } catch (e) {
@@ -490,6 +510,8 @@ export default function Tracking() {
 
               <p className="ticket__desc">{actual.descripcion}</p>
 
+              <MapaEstatico lat={actual.lat} lng={actual.lng} />
+
               {actual.fotos?.length > 0 && (
                 <div className="media-grid">
                   {actual.fotos.map((f) => (
@@ -501,9 +523,6 @@ export default function Tracking() {
                       className="media-item"
                     >
                       <img src={f.url} alt={f.nombre_archivo} loading="lazy" />
-                      <span className="media-item__key">
-                        {f.tipo_foto === 'ANTES' ? 'Antes del arreglo' : 'Después del arreglo'}
-                      </span>
                     </a>
                   ))}
                 </div>
@@ -522,7 +541,9 @@ export default function Tracking() {
                   Trabajo resuelto
                   {actual.calificacion
                     ? `, calificado con ${actual.calificacion.puntuacion} de 5.`
-                    : '. Podés calificarlo desde tu perfil.'}
+                    : soyElCliente
+                      ? '. Podés calificarlo desde tu perfil.'
+                      : '.'}
                 </p>
               )}
 
