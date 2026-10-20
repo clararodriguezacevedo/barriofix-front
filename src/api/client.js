@@ -219,18 +219,40 @@ export function fetchFotos(idSolicitud) {
   return request(`/api/solicitudes/${idSolicitud}/fotos`)
 }
 
+/** Redimensiona y recomprime la imagen en el navegador antes de subirla: las
+ *  fotos de celular pesan varios MB y asi bajan a cientos de KB, evitando que S3
+ *  las rechace por tamaño y haciendo la subida y la vista mucho más rápidas. Si
+ *  algo falla (formato raro, navegador viejo), devuelve el archivo original. */
+async function comprimirImagen(archivo, maxLado = 1600, calidad = 0.8) {
+  if (!archivo.type?.startsWith('image/')) return archivo
+  try {
+    const bitmap = await createImageBitmap(archivo)
+    const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * escala)
+    canvas.height = Math.round(bitmap.height * escala)
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', calidad))
+    return blob ?? archivo
+  } catch {
+    return archivo
+  }
+}
+
 /** Sube una foto en dos pasos: 1) pide al backend una URL prefirmada, 2) sube
  *  el archivo directo a S3 (no pasa por API Gateway ni Lambda). El tipo
- *  (ANTES/DESPUES) lo decide el backend segun el rol. */
+ *  (ANTES/DESPUES) lo decide el backend segun el rol. La imagen se comprime
+ *  antes de subir. */
 export async function subirFoto(idSolicitud, archivo) {
+  const imagen = await comprimirImagen(archivo)
   const { upload } = await request(`/api/solicitudes/${idSolicitud}/fotos`, {
     method: 'POST',
     body: JSON.stringify({}),
   })
   const form = new FormData()
   Object.entries(upload.fields).forEach(([k, v]) => form.append(k, v))
-  form.append('Content-Type', archivo.type || 'image/jpeg')
-  form.append('file', archivo) // el archivo va ULTIMO en un POST a S3
+  form.append('Content-Type', imagen.type || 'image/jpeg')
+  form.append('file', imagen, 'foto.jpg') // el archivo va ULTIMO en un POST a S3
   const res = await fetch(upload.url, { method: 'POST', body: form })
   if (!res.ok) throw new Error('No se pudo subir la foto a S3')
 }
