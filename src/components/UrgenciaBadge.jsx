@@ -16,9 +16,8 @@ function capitalizar(s) {
 export default function UrgenciaBadge({ urgencia }) {
   if (!urgencia) return null
   const nombre = typeof urgencia === 'string' ? urgencia : urgencia.nombre
-  return (
-    <span className={URGENCIA_CLASS[nombre] ?? 'badge'}>
-      Urgencia {capitalizar(nombre)}
-    </span>
-  )
+  // Lookup en mayúsculas para que el color no dependa de cómo venga el nombre
+  // del backend (BAJA, Baja, baja).
+  const clase = URGENCIA_CLASS[(nombre ?? '').toUpperCase()] ?? 'badge'
+  return <span className={clase}>Urgencia {capitalizar(nombre)}</span>
 }
