@@ -1,4 +1,4 @@
-# BarrioFix — Frontend
+# BarrioFix, Frontend
 
 SPA en React + Vite para pedir reparaciones del hogar y conectar con profesionales
 del barrio. Consume la API de BarrioFix (FastAPI detrás de un ALB) y se sirve como
@@ -52,10 +52,10 @@ cp .env.example .env
 
 Hay dos tipos de variables y la diferencia importa:
 
-- **`VITE_API_URL`** — la lee la aplicación. Vite la compila **dentro** del bundle
+- **`VITE_API_URL`**: la lee la aplicación. Vite la compila **dentro** del bundle
   en tiempo de build. Si la cambiás, tenés que volver a correr `npm run build`;
   no alcanza con re-subir los archivos a S3.
-- **`AWS_REGION`, `AWS_S3_BUCKET`, `AWS_S3_WEBSITE_URL`, `AWS_PROFILE`** — no las
+- **`AWS_REGION`, `AWS_S3_BUCKET`, `AWS_S3_WEBSITE_URL`, `AWS_PROFILE`**: no las
   lee la aplicación (Vite ignora todo lo que no empiece con `VITE_`). Están para
   documentar el destino del deploy y para copiarlas a los comandos de abajo.
 
@@ -108,7 +108,7 @@ npm run lint
 npm run build
 ```
 
-Genera `dist/` — son los únicos archivos que van a S3:
+Genera `dist/` (son los únicos archivos que van a S3):
 
 ```
 dist/
@@ -194,7 +194,7 @@ aws s3 website s3://barriofix-frontend-clara --index-document index.html --error
 > a una de ellas o recargar la página devuelve 404. Con ella, S3 sirve `index.html`
 > y el router resuelve la ruta del lado del cliente.
 
-Comprobalo desde afuera — tiene que dar `200`, no `404`:
+Comprobalo desde afuera (tiene que dar `200`, no `404`):
 
 ```bash
 curl -o /dev/null -w "%{http_code}\n" http://barriofix-frontend-clara.s3-website-us-east-1.amazonaws.com/trabajos
@@ -270,10 +270,10 @@ del bundle.
 
 Casi siempre no es CORS. Mirá el status de la respuesta:
 
-- **503** — el ALB no tiene targets healthy. El 503 lo genera el ALB, no la app, así
+- **503**: el ALB no tiene targets healthy. El 503 lo genera el ALB, no la app, así
   que sale sin headers CORS y el browser lo etiqueta mal. Es infra: verificá con
   `curl http://<alb>/health`. La app muestra un mensaje explícito en este caso.
-- **200 pero bloqueado** — el origen desde el que estás abriendo el sitio no está en
+- **200 pero bloqueado**: el origen desde el que estás abriendo el sitio no está en
   la lista del backend. Comparalo carácter por carácter con lo que muestra la barra
   del browser, prestando atención al guión vs punto en `s3-website-us-east-1`.
   Pasa típicamente al abrir por el REST endpoint o desde `localhost`.
@@ -302,7 +302,7 @@ y volvé a sincronizar. Verificá con el `grep` de la sección 5.
 
 Hay dos instancias detrás del ALB y los datos viven en memoria de cada proceso: no
 hay base de datos. Un `POST` cae en una sola instancia y los `GET` siguientes
-alternan entre las dos. La app ya trabaja alrededor de esto — usa la respuesta del
+alternan entre las dos. La app ya trabaja alrededor de esto: usa la respuesta del
 propio `POST`/`PATCH` para actualizar el estado local en lugar de re-consultar la
 lista. Todo lo que se cree se pierde en el próximo redeploy.
 
