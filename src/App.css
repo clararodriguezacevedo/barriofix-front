@@ -403,6 +403,15 @@ button.chip { cursor: pointer; }
   min-width: 0;
 }
 
+/* Las textareas se pueden agrandar a mano, pero con tope: sin esto el usuario
+   puede estirarlas hasta romper el layout de la página o del modal. */
+.field textarea,
+.ticket__rating--form textarea {
+  resize: vertical;
+  min-height: 72px;
+  max-height: 320px;
+}
+
 .field input:focus,
 .field select:focus,
 .field textarea:focus,
@@ -997,7 +1006,10 @@ button.chip { cursor: pointer; }
   text-align: left;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-left: 3px solid transparent;
+  /* El borde izquierdo acentuado se ve siempre (sutil); al seleccionar o al
+     pasar por encima se tiñe de color. Antes era transparente y la cajita
+     parecía quedar sin borde de ese lado. */
+  border-left: 3px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   cursor: pointer;
