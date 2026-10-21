@@ -42,10 +42,20 @@ function direccionCorta(componentes, completa) {
   return (completa ?? '').replace(/, Argentina$/, '')
 }
 
+// Barrio de una dirección, para alinear la zona con el punto marcado. Sirve
+// tanto para los componentes del geocoder (long_name) como los de Places (longText).
+function barrioDe(componentes) {
+  const comp = (tipo) => {
+    const c = componentes?.find((x) => x.types.includes(tipo))
+    return c?.long_name ?? c?.longText ?? null
+  }
+  return comp('sublocality') || comp('neighborhood') || comp('locality') || null
+}
+
 /** Dirección con autocompletado y mapa con pin arrastrable, al estilo de las
  *  apps de delivery: si escribís la dirección, el pin va ahí; si movés el pin,
  *  la dirección se actualiza. Sin API key queda solo el campo de texto. */
-export function UbicacionPicker({ direccion, onDireccionChange, ubicacion, onUbicacionChange }) {
+export function UbicacionPicker({ direccion, onDireccionChange, ubicacion, onUbicacionChange, onZona }) {
   const sinKey = !config.googleMapsApiKey
   const divRef = useRef(null)
   const mapRef = useRef(null)
@@ -54,8 +64,8 @@ export function UbicacionPicker({ direccion, onDireccionChange, ubicacion, onUbi
   const geocoderRef = useRef(null)
   const placesRef = useRef(null)
   const tokenRef = useRef(null)
-  const callbacksRef = useRef({ onDireccionChange, onUbicacionChange })
-  callbacksRef.current = { onDireccionChange, onUbicacionChange }
+  const callbacksRef = useRef({ onDireccionChange, onUbicacionChange, onZona })
+  callbacksRef.current = { onDireccionChange, onUbicacionChange, onZona }
 
   const [estado, setEstado] = useState(sinKey ? 'sinKey' : 'cargando')
   const [sugerencias, setSugerencias] = useState([])
@@ -87,6 +97,7 @@ export function UbicacionPicker({ direccion, onDireccionChange, ubicacion, onUbi
         callbacksRef.current.onDireccionChange(
           direccionCorta(results[0].address_components, results[0].formatted_address),
         )
+        callbacksRef.current.onZona?.(barrioDe(results[0].address_components))
       }
     } catch {
       // Sin dirección para ese punto: queda la que estaba, el pin igual se guarda
@@ -177,6 +188,7 @@ export function UbicacionPicker({ direccion, onDireccionChange, ubicacion, onUbi
       const lugar = prediccion.toPlace()
       await lugar.fetchFields({ fields: ['location', 'addressComponents', 'formattedAddress'] })
       onDireccionChange(direccionCorta(lugar.addressComponents, lugar.formattedAddress))
+      onZona?.(barrioDe(lugar.addressComponents))
       const pos = lugar.location.toJSON()
       ponerPin(pos, 17)
       onUbicacionChange(pos)

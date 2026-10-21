@@ -8,6 +8,32 @@ import { esperarFotos } from '../api/client'
 import { UbicacionPicker } from '../components/MapaUbicacion'
 import FotosSelector, { useFotos } from '../components/FotosSelector'
 
+// Normaliza un nombre de barrio/zona para comparar sin que molesten acentos,
+// mayusculas, espacios de mas o el articulo inicial ("La Boca" vs "Boca").
+function normalizarZona(nombre) {
+  return (nombre ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/^(la|el|los|las)\s+/, '')
+}
+
+// Busca en el catalogo la zona que corresponde al barrio que devolvio el mapa.
+// Primero intenta match exacto normalizado y despues uno mas laxo por inclusion.
+function buscarZona(zonas, barrio) {
+  if (!barrio) return null
+  const objetivo = normalizarZona(barrio)
+  return (
+    zonas.find((z) => normalizarZona(z.nombre) === objetivo) ||
+    zonas.find((z) => {
+      const n = normalizarZona(z.nombre)
+      return n.includes(objetivo) || objetivo.includes(n)
+    }) ||
+    null
+  )
+}
+
 export default function NewRequest() {
   const { crear, recargar } = useSolicitudes()
   const { categorias, zonas, urgencias, cargando, error: errorCatalogos } = useCatalogos()
@@ -24,6 +50,9 @@ export default function NewRequest() {
   })
   const fotos = useFotos()
   const [ubicacion, setUbicacion] = useState(null)
+  // Feedback de la deteccion de zona por el mapa: { estado, nombre }.
+  // estado: 'match' (se autoselecciono) | 'sinMatch' (barrio sin zona en el catalogo).
+  const [zonaDetectada, setZonaDetectada] = useState(null)
   const [creada, setCreada] = useState(null)
   // Solicitud ya publicada a la que le fallaron fotos: se reintentan sin volver a crearla
   const [pendienteFotos, setPendienteFotos] = useState(null)
@@ -45,6 +74,21 @@ export default function NewRequest() {
 
   function actualizar(campo, valor) {
     setForm((prev) => ({ ...prev, [campo]: valor }))
+  }
+
+  // Cuando el mapa detecta un barrio (por el pin o por la dirección elegida),
+  // alineamos la zona: si el barrio existe en el catalogo lo autoseleccionamos;
+  // si no, avisamos y dejamos la zona que el usuario haya elegido a mano.
+  function onZonaDetectada(barrio) {
+    const zona = buscarZona(zonas, barrio)
+    if (zona) {
+      actualizar('id_zona', String(zona.id_zona))
+      setZonaDetectada({ estado: 'match', nombre: zona.nombre })
+    } else if (barrio) {
+      setZonaDetectada({ estado: 'sinMatch', nombre: barrio })
+    } else {
+      setZonaDetectada(null)
+    }
   }
 
   async function handleSubmit(e) {
@@ -183,7 +227,9 @@ export default function NewRequest() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => navigate('/seguimiento')}
+              onClick={() =>
+                navigate('/seguimiento', { state: { seleccionar: creada.id_solicitud } })
+              }
             >
               Ver seguimiento
             </button>
@@ -250,7 +296,19 @@ export default function NewRequest() {
               onDireccionChange={(valor) => actualizar('direccion', valor)}
               ubicacion={ubicacion}
               onUbicacionChange={setUbicacion}
+              onZona={onZonaDetectada}
             />
+            {zonaDetectada?.estado === 'match' && (
+              <small className="auth-card__hint">
+                Zona detectada por la ubicación: <strong>{zonaDetectada.nombre}</strong>.
+              </small>
+            )}
+            {zonaDetectada?.estado === 'sinMatch' && (
+              <small className="auth-card__hint">
+                La ubicación cae en <strong>{zonaDetectada.nombre}</strong>, que no está en la lista
+                de zonas. Elegí la más cercana a mano.
+              </small>
+            )}
           </div>
 
           <label className="field">
