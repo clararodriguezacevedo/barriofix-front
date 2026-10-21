@@ -5,7 +5,7 @@ import { useCatalogos } from '../context/CatalogosContext'
 import { subirFoto } from '../api/client'
 import { IconCheck } from '../components/Icons'
 import ApiState from '../components/ApiState'
-import { MapaPicker } from '../components/MapaUbicacion'
+import { UbicacionPicker } from '../components/MapaUbicacion'
 
 export default function NewRequest() {
   const { crear } = useSolicitudes()
@@ -16,6 +16,7 @@ export default function NewRequest() {
     titulo: '',
     descripcion: '',
     direccion: '',
+    piso: '',
     id_categoria: '',
     id_zona: '',
     id_urgencia: '',
@@ -62,7 +63,9 @@ export default function NewRequest() {
       const solicitud = await crear({
         titulo: form.titulo,
         descripcion: form.descripcion,
-        direccion: form.direccion,
+        direccion: form.piso.trim()
+          ? `${form.direccion.trim()}, ${form.piso.trim()}`
+          : form.direccion.trim(),
         id_categoria: Number(form.id_categoria),
         id_zona: Number(form.id_zona),
         id_urgencia: Number(form.id_urgencia),
@@ -163,24 +166,25 @@ export default function NewRequest() {
             </label>
           </div>
 
-          <label className="field">
-            <span>Dirección</span>
-            <input
-              value={form.direccion}
-              onChange={(e) => actualizar('direccion', e.target.value)}
-              placeholder="Calle, número, piso/depto"
-              maxLength={255}
-            />
-          </label>
-
           <div className="field">
-            <span>Ubicación en el mapa (opcional)</span>
-            <MapaPicker
-              lat={ubicacion?.lat}
-              lng={ubicacion?.lng}
-              onChange={(lat, lng) => setUbicacion({ lat, lng })}
+            <span>Dirección</span>
+            <UbicacionPicker
+              direccion={form.direccion}
+              onDireccionChange={(valor) => actualizar('direccion', valor)}
+              ubicacion={ubicacion}
+              onUbicacionChange={setUbicacion}
             />
           </div>
+
+          <label className="field">
+            <span>Piso, depto o referencia (opcional)</span>
+            <input
+              value={form.piso}
+              onChange={(e) => actualizar('piso', e.target.value)}
+              placeholder="Ej: 3° B, timbre que no anda"
+              maxLength={50}
+            />
+          </label>
 
           <label className="field">
             <span>Descripción</span>

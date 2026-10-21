@@ -456,6 +456,64 @@ button.chip { cursor: pointer; }
   border-radius: 8px;
 }
 
+/* Dirección con autocompletado y mapa con pin (Nueva solicitud) */
+.ubicacion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ubicacion__buscador {
+  position: relative;
+}
+
+.ubicacion__sugerencias {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.ubicacion__sugerencias li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ubicacion__sugerencias li:hover,
+.ubicacion__sugerencias li.is-activa {
+  background: var(--primary-soft);
+}
+
+.ubicacion__sugerencias strong {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ubicacion__sugerencias small {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.ubicacion__mapa {
+  height: 260px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
 /* ---------- pages: shared ---------- */
 
 .page--narrow {
