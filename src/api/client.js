@@ -297,6 +297,21 @@ export async function subirFoto(idSolicitud, imagen) {
   if (!res.ok) throw new Error(await mensajeDeS3(res))
 }
 
+// La foto se registra en DynamoDB de forma asíncrona (evento S3 -> Lambda), así
+// que tras subir reintentamos leer la lista hasta que aparezca o se agote el tiempo,
+// para que no quede "subida pero sin verse".
+export async function esperarFotos(idSolicitud, minimo, intentos = 6, esperaMs = 1200) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const fotos = await fetchFotos(idSolicitud)
+      if (fotos.length >= minimo) return
+    } catch {
+      // reintentamos igual
+    }
+    await new Promise((r) => setTimeout(r, esperaMs))
+  }
+}
+
 // ---------------------------------------------------------------- calificaciones
 
 export function calificar(idSolicitud, puntuacion, comentario) {

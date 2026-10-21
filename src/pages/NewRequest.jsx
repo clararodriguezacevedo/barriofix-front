@@ -4,11 +4,12 @@ import { useSolicitudes } from '../context/SolicitudesContext'
 import { useCatalogos } from '../context/CatalogosContext'
 import { IconCheck } from '../components/Icons'
 import ApiState from '../components/ApiState'
+import { esperarFotos } from '../api/client'
 import { UbicacionPicker } from '../components/MapaUbicacion'
 import FotosSelector, { useFotos } from '../components/FotosSelector'
 
 export default function NewRequest() {
-  const { crear } = useSolicitudes()
+  const { crear, recargar } = useSolicitudes()
   const { categorias, zonas, urgencias, cargando, error: errorCatalogos } = useCatalogos()
   const navigate = useNavigate()
 
@@ -95,7 +96,15 @@ export default function NewRequest() {
 
   async function subirFotos(solicitud) {
     setError(null)
-    const { fallidas } = await fotos.subirTodas(solicitud.id_solicitud)
+    // Las ya subidas en un intento anterior también cuentan para la espera
+    const previas = fotos.fotos.filter((f) => f.estado === 'subida').length
+    const { subidas, fallidas } = await fotos.subirTodas(solicitud.id_solicitud)
+    if (subidas > 0) {
+      // Las fotos se registran de forma asíncrona (S3 -> Lambda): esperamos a
+      // que aparezcan y recargamos, así Seguimiento ya las muestra
+      await esperarFotos(solicitud.id_solicitud, previas + subidas)
+      await recargar()
+    }
     if (fallidas > 0) {
       setPendienteFotos(solicitud)
       return

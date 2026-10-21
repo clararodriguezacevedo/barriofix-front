@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fetchFotos, fetchSeguimiento } from '../api/client'
+import { esperarFotos, fetchSeguimiento } from '../api/client'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useAuth } from '../context/AuthContext'
 import { ESTADOS, ESTADO_LABEL, ORDEN_FILTROS, PASOS } from '../data/estados'
@@ -19,21 +19,6 @@ function nombreCompleto(p) {
 function fechaHora(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-// La foto se registra en DynamoDB de forma asíncrona (evento S3 -> Lambda), así
-// que tras subir reintentamos leer la lista hasta que aparezca o se agote el tiempo,
-// para que no quede "subida pero sin verse".
-async function esperarFotos(idSolicitud, minimo, intentos = 6, esperaMs = 1200) {
-  for (let i = 0; i < intentos; i++) {
-    try {
-      const fotos = await fetchFotos(idSolicitud)
-      if (fotos.length >= minimo) return
-    } catch {
-      // reintentamos igual
-    }
-    await new Promise((r) => setTimeout(r, esperaMs))
-  }
 }
 
 /**
