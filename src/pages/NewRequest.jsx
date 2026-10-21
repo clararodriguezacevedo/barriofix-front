@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useCatalogos } from '../context/CatalogosContext'
-import { subirFoto } from '../api/client'
 import { IconCheck } from '../components/Icons'
 import ApiState from '../components/ApiState'
 import { UbicacionPicker } from '../components/MapaUbicacion'
+import FotosSelector, { useFotos } from '../components/FotosSelector'
 
 export default function NewRequest() {
   const { crear } = useSolicitudes()
@@ -21,12 +21,13 @@ export default function NewRequest() {
     id_zona: '',
     id_urgencia: '',
   })
-  const [fotos, setFotos] = useState([])
+  const fotos = useFotos()
   const [ubicacion, setUbicacion] = useState(null)
   const [creada, setCreada] = useState(null)
+  // Solicitud ya publicada a la que le fallaron fotos: se reintentan sin volver a crearla
+  const [pendienteFotos, setPendienteFotos] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
-  const fotoInputRef = useRef(null)
 
   // Categoría y zona arrancan vacías (las elige el usuario): evitamos
   // pre-seleccionar la primera alfabética y que se mande sin querer. La urgencia
@@ -57,10 +58,19 @@ export default function NewRequest() {
       setError('Elegí categoría, zona y urgencia.')
       return
     }
+    if (fotos.preparando) {
+      setError('Esperá a que terminen de cargarse las fotos.')
+      return
+    }
+    if (fotos.fotos.some((f) => f.estado === 'invalida')) {
+      setError('Hay fotos que no se pueden subir. Sacalas o cambialas antes de publicar.')
+      return
+    }
 
     setEnviando(true)
+    let solicitud
     try {
-      const solicitud = await crear({
+      solicitud = await crear({
         titulo: form.titulo,
         descripcion: form.descripcion,
         direccion: form.piso.trim()
@@ -72,19 +82,77 @@ export default function NewRequest() {
         ...(ubicacion ? { lat: ubicacion.lat, lng: ubicacion.lng } : {}),
       })
 
-      // Las fotos van después: la solicitud tiene que existir para poder
-      // colgarles el id_solicitud y armar la key de S3.
-      for (const archivo of fotos) {
-        await subirFoto(solicitud.id_solicitud, archivo)
-      }
-
-      setCreada(solicitud)
-      setFotos([])
     } catch (e) {
-      setError(e.message)
-    } finally {
+      setError(`No se pudo publicar: ${e.message}`)
       setEnviando(false)
+      return
     }
+    // Las fotos van después: la solicitud tiene que existir para poder
+    // colgarles el id_solicitud y armar la key de S3.
+    await subirFotos(solicitud)
+    setEnviando(false)
+  }
+
+  async function subirFotos(solicitud) {
+    setError(null)
+    const { fallidas } = await fotos.subirTodas(solicitud.id_solicitud)
+    if (fallidas > 0) {
+      setPendienteFotos(solicitud)
+      return
+    }
+    setPendienteFotos(null)
+    setCreada(solicitud)
+    fotos.limpiar()
+  }
+
+  async function reintentarFotos() {
+    setEnviando(true)
+    await subirFotos(pendienteFotos)
+    setEnviando(false)
+  }
+
+  if (pendienteFotos) {
+    const fallidas = fotos.fotos.filter((f) => f.estado === 'error').length
+    return (
+      <div className="page page--narrow">
+        <div className="ticket form">
+          <h1 className="page__title">La solicitud quedó publicada</h1>
+          <p className="page__lead">
+            {fallidas > 0
+              ? `Pero ${fallidas === 1 ? 'una foto no se pudo subir' : `${fallidas} fotos no se pudieron subir`}. Podés reintentar, sacarlas o seguir sin ellas.`
+              : 'Ya no quedan fotos pendientes.'}
+          </p>
+          <FotosSelector
+            fotos={fotos.fotos}
+            onAgregar={fotos.agregar}
+            onQuitar={fotos.quitar}
+            deshabilitado={enviando}
+          />
+          <div className="confirm-ticket__actions">
+            <button
+              type="button"
+              className="btn btn-outline"
+              disabled={enviando}
+              onClick={() => {
+                setCreada(pendienteFotos)
+                setPendienteFotos(null)
+                fotos.limpiar()
+              }}
+            >
+              Seguir sin esas fotos
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={enviando || fotos.paraSubir === 0}
+              onClick={reintentarFotos}
+            >
+              {enviando ? 'Subiendo…' : 'Reintentar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (creada) {
@@ -216,33 +284,22 @@ export default function NewRequest() {
 
           <div className="field">
             <span>Fotos del problema, antes del arreglo (opcional)</span>
-            <input
-              ref={fotoInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              onChange={(e) => setFotos(Array.from(e.target.files ?? []))}
+            <FotosSelector
+              fotos={fotos.fotos}
+              onAgregar={fotos.agregar}
+              onQuitar={fotos.quitar}
+              deshabilitado={enviando}
             />
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              onClick={() => fotoInputRef.current?.click()}
-            >
-              Elegir fotos
-            </button>
-            {fotos.length > 0 && (
-              <small className="auth-card__hint">
-                {fotos.length} archivo{fotos.length > 1 ? 's' : ''} seleccionado
-                {fotos.length > 1 ? 's' : ''}
-              </small>
-            )}
           </div>
 
-          {error && <p className="form-error">No se pudo publicar: {error}</p>}
+          {error && <p className="form-error">{error}</p>}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={enviando}>
-            {enviando ? 'Publicando…' : 'Publicar solicitud'}
+            {enviando
+              ? fotos.fotos.some((f) => f.estado === 'subiendo')
+                ? 'Subiendo fotos…'
+                : 'Publicando…'
+              : 'Publicar solicitud'}
           </button>
         </form>
       )}

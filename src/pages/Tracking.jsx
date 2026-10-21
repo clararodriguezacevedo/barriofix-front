@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fetchFotos, fetchSeguimiento, subirFoto } from '../api/client'
+import { fetchFotos, fetchSeguimiento } from '../api/client'
 import { useSolicitudes } from '../context/SolicitudesContext'
 import { useAuth } from '../context/AuthContext'
 import { ESTADOS, ESTADO_LABEL, ORDEN_FILTROS, PASOS } from '../data/estados'
@@ -10,6 +10,7 @@ import Modal from '../components/Modal'
 import ApiState from '../components/ApiState'
 import { IconMapPin, IconUser } from '../components/Icons'
 import { MapaEstatico } from '../components/MapaUbicacion'
+import FotosSelector, { useFotos } from '../components/FotosSelector'
 
 function nombreCompleto(p) {
   return p ? `${p.nombre} ${p.apellido}` : null
@@ -160,45 +161,64 @@ function OpcionesModal({ open, onClose, items }) {
   )
 }
 
-function SubirFotos({ idSolicitud, onSubida, onError }) {
-  const inputRef = useRef(null)
+/** Modal para que el profesional elija las fotos del trabajo, las revise y
+ *  confirme la subida. Si alguna falla queda en la lista con el motivo, para
+ *  reintentarla o sacarla. */
+function SubirFotosModal({ open, onClose, idSolicitud, previas, onSubidas }) {
+  const fotos = useFotos()
   const [subiendo, setSubiendo] = useState(false)
 
-  async function enviar(archivos) {
-    if (archivos.length === 0) return
+  function cerrar() {
+    if (subiendo) return
+    fotos.limpiar()
+    onClose()
+  }
+
+  async function confirmar() {
     setSubiendo(true)
-    try {
-      for (const archivo of archivos) {
-        await subirFoto(idSolicitud, archivo)
-      }
-      if (inputRef.current) inputRef.current.value = ''
-      await onSubida()
-    } catch (e) {
-      onError(e.message)
-    } finally {
-      setSubiendo(false)
+    const { subidas, fallidas } = await fotos.subirTodas(idSolicitud)
+    if (subidas > 0) {
+      // Esperamos a que el registro async aparezca antes de refrescar la UI
+      await esperarFotos(idSolicitud, previas + subidas)
+      await onSubidas()
+    }
+    setSubiendo(false)
+    if (fallidas === 0) {
+      fotos.limpiar()
+      onClose()
     }
   }
 
+  const n = fotos.paraSubir
+  const invalidas = fotos.fotos.some((f) => f.estado === 'invalida')
   return (
-    <>
-      <button
-        type="button"
-        className="btn btn-outline btn-sm"
-        disabled={subiendo}
-        onClick={() => inputRef.current?.click()}
-      >
-        {subiendo ? 'Subiendo…' : 'Subir foto del trabajo'}
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        onChange={(e) => enviar(Array.from(e.target.files ?? []))}
+    <Modal open={open} onClose={cerrar} title="Fotos del trabajo">
+      <p className="ticket__desc">
+        Elegí las fotos, revisalas y sacá las que no quieras antes de subirlas.
+      </p>
+      <FotosSelector
+        fotos={fotos.fotos}
+        onAgregar={fotos.agregar}
+        onQuitar={fotos.quitar}
+        deshabilitado={subiendo}
       />
-    </>
+      {invalidas && (
+        <p className="form-error">Las fotos marcadas no se pueden subir. Sacalas o elegí otras.</p>
+      )}
+      <div className="dialog-body__actions">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={cerrar} disabled={subiendo}>
+          Cancelar
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={confirmar}
+          disabled={subiendo || n === 0 || fotos.preparando || invalidas}
+        >
+          {subiendo ? 'Subiendo…' : n === 1 ? 'Subir 1 foto' : `Subir ${n} fotos`}
+        </button>
+      </div>
+    </Modal>
   )
 }
 
@@ -316,30 +336,11 @@ export default function Tracking() {
     )
   }
 
-  // Ref del input file oculto para el item "Subir foto" del modal de opciones.
-  const fotoInputRef = useRef(null)
-  const [subiendoFoto, setSubiendoFoto] = useState(false)
+  const [fotosAbierto, setFotosAbierto] = useState(false)
 
-  async function subirArchivos(archivos) {
-    if (archivos.length === 0) return
-    const id = actual.id_solicitud
-    const previas = actual.fotos?.length ?? 0
-    setSubiendoFoto(true)
-    setAccionError(null)
-    try {
-      for (const archivo of archivos) {
-        await subirFoto(id, archivo)
-      }
-      if (fotoInputRef.current) fotoInputRef.current.value = ''
-      // Esperamos a que el registro async aparezca antes de refrescar la UI.
-      await esperarFotos(id, previas + archivos.length)
-      await recargar()
-      setRefresco((n) => n + 1)
-    } catch (e) {
-      setAccionError(e.message)
-    } finally {
-      setSubiendoFoto(false)
-    }
+  async function fotosSubidas() {
+    await recargar()
+    setRefresco((n) => n + 1)
   }
 
   const opcionesModal = actual
@@ -348,9 +349,8 @@ export default function Tracking() {
         ...(soyElProfesional && enCurso
           ? [
               {
-                label: subiendoFoto ? 'Subiendo foto...' : 'Subir foto del trabajo',
-                onClick: () => fotoInputRef.current?.click(),
-                disabled: subiendoFoto,
+                label: 'Subir fotos del trabajo',
+                onClick: () => setFotosAbierto(true),
               },
               {
                 label: 'Liberar trabajo',
@@ -576,13 +576,12 @@ export default function Tracking() {
         </div>
       )}
 
-      <input
-        ref={fotoInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        onChange={(e) => subirArchivos(Array.from(e.target.files ?? []))}
+      <SubirFotosModal
+        open={fotosAbierto}
+        onClose={() => setFotosAbierto(false)}
+        idSolicitud={actual?.id_solicitud}
+        previas={actual?.fotos?.length ?? 0}
+        onSubidas={fotosSubidas}
       />
 
       <HistorialModal

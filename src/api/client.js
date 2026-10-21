@@ -219,42 +219,82 @@ export function fetchFotos(idSolicitud) {
   return request(`/api/solicitudes/${idSolicitud}/fotos`)
 }
 
-/** Redimensiona y recomprime la imagen en el navegador antes de subirla: las
- *  fotos de celular pesan varios MB y asi bajan a cientos de KB, evitando que S3
- *  las rechace por tamaño y haciendo la subida y la vista mucho más rápidas. Si
- *  algo falla (formato raro, navegador viejo), devuelve el archivo original. */
-async function comprimirImagen(archivo, maxLado = 1600, calidad = 0.8) {
-  if (!archivo.type?.startsWith('image/')) return archivo
+/** Prepara una foto apenas el usuario la elige: la redimensiona y la recomprime
+ *  a JPEG en el navegador. Las fotos de celular pesan varios MB y así bajan a
+ *  cientos de KB, con lo que la subida es rápida y el tamaño nunca es un
+ *  problema. Si el navegador no puede leer la imagen (por ejemplo HEIC fuera de
+ *  Safari) tira un error con un mensaje para mostrarle al usuario, así se
+ *  entera antes de publicar y no después. */
+export async function prepararFoto(archivo, maxLado = 1600, calidad = 0.82) {
+  let bitmap
   try {
-    const bitmap = await createImageBitmap(archivo)
-    const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.round(bitmap.width * escala)
-    canvas.height = Math.round(bitmap.height * escala)
-    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', calidad))
-    return blob ?? archivo
+    bitmap = await createImageBitmap(archivo)
   } catch {
-    return archivo
+    const ext = archivo.name?.split('.').pop()?.toUpperCase()
+    throw new Error(
+      ext && ext.length <= 5
+        ? `No pudimos abrir esta foto (${ext}). Probá con una en JPG o PNG.`
+        : 'No pudimos abrir esta foto. Probá con una en JPG o PNG.',
+    )
+  }
+  const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * escala)
+  canvas.height = Math.round(bitmap.height * escala)
+  const ctx = canvas.getContext('2d')
+  // Fondo blanco: un PNG con transparencia pasado a JPEG quedaría negro
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close?.()
+  const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', calidad))
+  if (!blob) throw new Error('No pudimos procesar esta foto. Probá con otra.')
+  return blob
+}
+
+/** Traduce la respuesta de error de S3 (XML) a algo que se pueda mostrar. */
+async function mensajeDeS3(res) {
+  const xml = await res.text().catch(() => '')
+  const codigo = xml.match(/<Code>([^<]+)<\/Code>/)?.[1]
+  switch (codigo) {
+    case 'EntityTooLarge':
+      return 'La foto es demasiado pesada.'
+    case 'AccessDenied':
+    case 'ExpiredToken':
+    case 'RequestTimeTooSkewed':
+      return 'Se venció el permiso para subir la foto. Probá de nuevo.'
+    default:
+      return 'No se pudo subir la foto. Probá de nuevo en un rato.'
   }
 }
 
-/** Sube una foto en dos pasos: 1) pide al backend una URL prefirmada, 2) sube
- *  el archivo directo a S3 (no pasa por API Gateway ni Lambda). El tipo
- *  (ANTES/DESPUES) lo decide el backend segun el rol. La imagen se comprime
- *  antes de subir. */
-export async function subirFoto(idSolicitud, archivo) {
-  const imagen = await comprimirImagen(archivo)
-  const { upload } = await request(`/api/solicitudes/${idSolicitud}/fotos`, {
-    method: 'POST',
-    body: JSON.stringify({}),
-  })
+/** Sube una foto ya preparada (ver prepararFoto) en dos pasos: 1) pide al
+ *  backend una URL prefirmada, 2) sube el archivo directo a S3 (no pasa por API
+ *  Gateway ni Lambda). El tipo (ANTES/DESPUES) lo decide el backend según el rol.
+ *  Los errores salen con un mensaje listo para mostrar. */
+export async function subirFoto(idSolicitud, imagen) {
+  let upload
+  try {
+    ;({ upload } = await request(`/api/solicitudes/${idSolicitud}/fotos`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }))
+  } catch (e) {
+    // Sin status es un error de red (el fetch ni llegó a la API)
+    if (e.status === undefined) throw new Error('No hay conexión con el servidor. Probá de nuevo.')
+    throw e
+  }
   const form = new FormData()
   Object.entries(upload.fields).forEach(([k, v]) => form.append(k, v))
   form.append('Content-Type', imagen.type || 'image/jpeg')
   form.append('file', imagen, 'foto.jpg') // el archivo va ULTIMO en un POST a S3
-  const res = await fetch(upload.url, { method: 'POST', body: form })
-  if (!res.ok) throw new Error('No se pudo subir la foto a S3')
+  let res
+  try {
+    res = await fetch(upload.url, { method: 'POST', body: form })
+  } catch {
+    throw new Error('Se cortó la conexión mientras subía la foto. Probá de nuevo.')
+  }
+  if (!res.ok) throw new Error(await mensajeDeS3(res))
 }
 
 // ---------------------------------------------------------------- calificaciones
