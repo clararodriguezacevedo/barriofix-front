@@ -7,6 +7,32 @@ import { IconCheck } from '../components/Icons'
 import ApiState from '../components/ApiState'
 import { MapaPicker } from '../components/MapaUbicacion'
 
+// Normaliza un nombre de barrio/zona para comparar sin que molesten acentos,
+// mayusculas, espacios de mas o el articulo inicial ("La Boca" vs "Boca").
+function normalizarZona(nombre) {
+  return (nombre ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/^(la|el|los|las)\s+/, '')
+}
+
+// Busca en el catalogo la zona que corresponde al barrio que devolvio el mapa.
+// Primero intenta match exacto normalizado y despues uno mas laxo por inclusion.
+function buscarZona(zonas, barrio) {
+  if (!barrio) return null
+  const objetivo = normalizarZona(barrio)
+  return (
+    zonas.find((z) => normalizarZona(z.nombre) === objetivo) ||
+    zonas.find((z) => {
+      const n = normalizarZona(z.nombre)
+      return n.includes(objetivo) || objetivo.includes(n)
+    }) ||
+    null
+  )
+}
+
 export default function NewRequest() {
   const { crear } = useSolicitudes()
   const { categorias, zonas, urgencias, cargando, error: errorCatalogos } = useCatalogos()
@@ -22,6 +48,9 @@ export default function NewRequest() {
   })
   const [fotos, setFotos] = useState([])
   const [ubicacion, setUbicacion] = useState(null)
+  // Feedback de la deteccion de zona por el pin: { estado, nombre }.
+  // estado: 'match' (se autoselecciono) | 'sinMatch' (barrio sin zona en el catalogo).
+  const [zonaDetectada, setZonaDetectada] = useState(null)
   const [creada, setCreada] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
@@ -42,6 +71,21 @@ export default function NewRequest() {
 
   function actualizar(campo, valor) {
     setForm((prev) => ({ ...prev, [campo]: valor }))
+  }
+
+  // Cuando el pin detecta un barrio, alineamos la zona con el pin: si el barrio
+  // existe en el catalogo, lo autoseleccionamos; si no, avisamos y dejamos la
+  // zona que haya elegido el usuario a mano.
+  function onZonaDetectada(barrio) {
+    const zona = buscarZona(zonas, barrio)
+    if (zona) {
+      actualizar('id_zona', String(zona.id_zona))
+      setZonaDetectada({ estado: 'match', nombre: zona.nombre })
+    } else if (barrio) {
+      setZonaDetectada({ estado: 'sinMatch', nombre: barrio })
+    } else {
+      setZonaDetectada(null)
+    }
   }
 
   async function handleSubmit(e) {
@@ -103,7 +147,9 @@ export default function NewRequest() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => navigate('/seguimiento')}
+              onClick={() =>
+                navigate('/seguimiento', { state: { seleccionar: creada.id_solicitud } })
+              }
             >
               Ver seguimiento
             </button>
@@ -179,7 +225,19 @@ export default function NewRequest() {
               lat={ubicacion?.lat}
               lng={ubicacion?.lng}
               onChange={(lat, lng) => setUbicacion({ lat, lng })}
+              onZona={onZonaDetectada}
             />
+            {zonaDetectada?.estado === 'match' && (
+              <small className="auth-card__hint">
+                Zona detectada por el pin: <strong>{zonaDetectada.nombre}</strong>.
+              </small>
+            )}
+            {zonaDetectada?.estado === 'sinMatch' && (
+              <small className="auth-card__hint">
+                El pin cae en <strong>{zonaDetectada.nombre}</strong>, que no está en la lista de
+                zonas. Elegí la más cercana a mano.
+              </small>
+            )}
           </div>
 
           <label className="field">

@@ -228,8 +228,13 @@ export default function Tracking() {
   }, [solicitudes])
 
   const visibles = useMemo(() => {
-    if (!filtroEstado) return solicitudes
-    return solicitudes.filter((s) => s.estado?.nombre === filtroEstado)
+    const filtradas = filtroEstado
+      ? solicitudes.filter((s) => s.estado?.nombre === filtroEstado)
+      : solicitudes
+    // Mas recientemente modificadas primero (fecha del estado actual; si por
+    // algun motivo falta, caemos a la de creacion).
+    const fecha = (s) => new Date(s.fecha_actualizacion ?? s.fecha_creacion ?? 0).getTime()
+    return [...filtradas].sort((a, b) => fecha(b) - fecha(a))
   }, [solicitudes, filtroEstado])
 
   useEffect(() => {

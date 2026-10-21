@@ -20,13 +20,31 @@ function cargarMaps(apiKey) {
   return mapsPromise
 }
 
+// Dado un resultado de geocoding, saca el barrio (en CABA viene como
+// sublocality_level_1; algunos puntos lo traen como neighborhood). Devuelve el
+// nombre tal cual lo da Google, para que el caller lo matchee contra las zonas.
+function barrioDeResultado(resultado) {
+  if (!resultado) return null
+  const prioridad = ['sublocality_level_1', 'sublocality', 'neighborhood']
+  for (const tipo of prioridad) {
+    const comp = resultado.address_components?.find((c) => c.types?.includes(tipo))
+    if (comp) return comp.long_name
+  }
+  return null
+}
+
 /** Mapa interactivo para que el cliente marque un pin. Llama onChange(lat, lng)
- *  en cada click. Sin API key no renderiza nada (el form sigue con la dirección). */
-export function MapaPicker({ lat, lng, onChange }) {
+ *  en cada click, y onZona(nombreBarrio) con el barrio que devuelve el reverse
+ *  geocoding del punto (o null si no se pudo). Sin API key no renderiza nada
+ *  (el form sigue con la dirección y la zona manual). */
+export function MapaPicker({ lat, lng, onChange, onZona }) {
   const divRef = useRef(null)
   const markerRef = useRef(null)
+  const geocoderRef = useRef(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  const onZonaRef = useRef(onZona)
+  onZonaRef.current = onZona
   const [estado, setEstado] = useState('cargando')
 
   useEffect(() => {
@@ -47,12 +65,20 @@ export function MapaPicker({ lat, lng, onChange }) {
           streetViewControl: false,
           fullscreenControl: false,
         })
+        geocoderRef.current = new maps.Geocoder()
         if (tieneInicial) markerRef.current = new maps.Marker({ position: centro, map })
         map.addListener('click', (e) => {
           const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() }
           if (!markerRef.current) markerRef.current = new maps.Marker({ map })
           markerRef.current.setPosition(pos)
           onChangeRef.current(pos.lat, pos.lng)
+          // Reverse geocoding del punto para detectar el barrio y que el caller
+          // pueda alinear la zona con el pin. Es best-effort: si falla, no pasa nada.
+          if (onZonaRef.current && geocoderRef.current) {
+            geocoderRef.current.geocode({ location: pos }, (resultados, status) => {
+              if (status === 'OK') onZonaRef.current(barrioDeResultado(resultados?.[0]))
+            })
+          }
         })
         setEstado('listo')
       })
