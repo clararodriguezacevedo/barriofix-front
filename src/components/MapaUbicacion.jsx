@@ -1,30 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { config } from '../config'
+import { cargarMaps } from './googleMaps'
 
 // Centro por defecto cuando todavía no hay ubicación (CABA)
 const CENTRO_DEFAULT = { lat: -34.6037, lng: -58.3816 }
-
-// Carga el SDK de Google Maps una sola vez y lo comparte entre componentes.
-// Con loading=async las librerías se piden con importLibrary.
-let mapsPromise = null
-function cargarMaps(apiKey) {
-  if (window.google?.maps?.importLibrary) return Promise.resolve(window.google.maps)
-  if (mapsPromise) return mapsPromise
-  mapsPromise = new Promise((resolve, reject) => {
-    window.__barriofixMapsListo = () => resolve(window.google.maps)
-    const s = document.createElement('script')
-    s.src =
-      `https://maps.googleapis.com/maps/api/js?key=${apiKey}` +
-      '&loading=async&language=es&region=AR&callback=__barriofixMapsListo'
-    s.async = true
-    s.onerror = () => {
-      mapsPromise = null
-      reject(new Error('No se pudo cargar Google Maps'))
-    }
-    document.head.appendChild(s)
-  })
-  return mapsPromise
-}
 
 // "Av. Córdoba 4850, Palermo" a partir de los componentes de una dirección. El
 // geocoder y Places los devuelven con nombres distintos (long_name / longText).

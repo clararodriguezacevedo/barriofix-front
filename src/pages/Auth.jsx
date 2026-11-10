@@ -3,16 +3,18 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useCatalogos } from '../context/CatalogosContext'
 import { IconUser, IconBriefcase, IconCheck } from '../components/Icons'
+import ZonasSelector from '../components/ZonasSelector'
 
 export default function Auth() {
   const { autenticado, necesitaPerfil, login, registro } = useAuth()
-  const { categorias: todasLasCategorias } = useCatalogos()
+  const { categorias: todasLasCategorias, zonas: todasLasZonas } = useCatalogos()
   const navigate = useNavigate()
   const location = useLocation()
 
   const [form, setForm] = useState({ nombre: '', apellido: '', telefono: '', descripcion_profesional: '' })
   const [rol, setRol] = useState('CLIENTE')
   const [categorias, setCategorias] = useState([])
+  const [zonas, setZonas] = useState([])
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -36,6 +38,10 @@ export default function Auth() {
       setError('Elegí al menos una especialidad.')
       return
     }
+    if (esProfesional && zonas.length === 0) {
+      setError('Elegí al menos una zona donde trabajes.')
+      return
+    }
     setEnviando(true)
     try {
       const usuario = await registro({
@@ -45,6 +51,7 @@ export default function Auth() {
         rol,
         descripcion_profesional: esProfesional ? form.descripcion_profesional || null : null,
         categorias: esProfesional ? categorias : [],
+        zonas: esProfesional ? zonas : [],
       })
       const desde = location.state?.desde
       navigate(desde || (usuario.es_profesional ? '/trabajos' : '/nueva-solicitud'), { replace: true })
@@ -114,6 +121,13 @@ export default function Auth() {
                     ))}
                   </div>
                   <small className="auth-card__hint">Solo vas a ver trabajos de las categorías que elijas.</small>
+                </div>
+                <div className="field">
+                  <span>Zonas donde trabajás</span>
+                  <ZonasSelector zonas={todasLasZonas} seleccionadas={zonas} onChange={setZonas} />
+                  <small className="auth-card__hint">
+                    Te avisamos por mail cuando aparezca un trabajo de tus especialidades en estas zonas.
+                  </small>
                 </div>
               </>
             )}

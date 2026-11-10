@@ -1245,3 +1245,34 @@ dialog::backdrop {
   justify-content: flex-end;
   margin-top: 6px;
 }
+
+/* Zonas de cobertura del profesional: barrios clickeables + chips del AMBA */
+.zonas-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zonas-selector__mapa-wrap {
+  position: relative;
+}
+
+.zonas-selector__mapa {
+  height: 320px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.zonas-selector__etiqueta {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  pointer-events: none;
+}
